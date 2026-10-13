@@ -1,0 +1,29 @@
+{
+    "name": "ltp",
+    "private": true,
+    "type": "module",
+    "description": "LTP — interfaz web responsive: portal del cliente, panel de operaciones y aplicación de campo del mensajero",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview",
+        "lint": "eslint resources/js --ext .js,.vue"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-vue": "^5.0.5",
+        "eslint": "^9.7.0",
+        "eslint-plugin-vue": "^9.27.0",
+        "laravel-vite-plugin": "^1.0.4",
+        "sass": "^1.77.8",
+        "vite": "^5.3.4",
+        "vite-plugin-pwa": "^0.20.1"
+    },
+    "dependencies": {
+        "dexie": "^4.0.8",
+        "jsqr": "^1.4.0",
+        "maplibre-gl": "^4.5.0",
+        "pinia": "^2.1.7",
+        "vue": "^3.4.34",
+        "vue-router": "^4.4.0"
+    }
+}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Ícono de aplicación: el monograma sobre el azul noche de la marca.
+
+    Lleva el fondo incorporado a propósito. La pieza suelta es de un solo color,
+    y sobre la barra de pestañas oscura de un navegador desaparecería; con su
+    propia superficie se ve siempre igual, sea cual sea el tema del sistema.
+
+    El <svg> anidado conserva la proporción del monograma (1.164:1) al encajarlo
+    en el cuadrado: sin él habría que estirarlo.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Avalia Logística">
+  <title>Avalia Logística</title>
+  <rect width="512" height="512" rx="112" fill="#0D1333"/>
+  <svg x="96" y="118" width="320" height="275" viewBox="370 394 340 292">
+    <polygon fill="#FFFFFF" points="588.1 394 491.9 394 370 645.3 427.9 645.3 524.5 446.1 555.5 446.1 652 645.3 710 645.3 588.1 394"/>
+    <polygon fill="#FFFFFF" points="520.7 645.3 570.2 543.2 541.2 483.5 443.1 686 500 686 500.9 686 639.5 686 619.7 645.3 520.7 645.3"/>
+  </svg>
+</svg>

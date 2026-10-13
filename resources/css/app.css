@@ -1,0 +1,547 @@
+/* ==========================================================================
+   Avalia Logística — sistema de diseño
+   --------------------------------------------------------------------------
+   Los colores salen del manual de marca, no de una interpretación:
+
+     #0D1333  azul noche   · el dominante
+     #004CB9  azul vivo    · el de acento de marca
+     #D2E3F3  azul pálido  · los fondos suaves
+     #FFFFFF  blanco
+     #0A0A0A  negro
+
+   Tres paletas con trabajos distintos que nunca se mezclan:
+
+   · La paleta de INTERFAZ viste la aplicación: barras, botones, bordes, foco.
+   · La paleta de MARCA (el azul vivo) viste superficies de identidad —el panel
+     del ingreso, la portada del sitio—. Nunca viste un control ni un dato.
+   · La paleta de DATOS viste las marcas de las gráficas. Está validada para
+     visión con deficiencia de color y para contraste sobre ambas superficies.
+
+   Por qué el acento de interfaz es el azul noche y no el azul vivo: la primera
+   serie categórica ya es un azul medio (#2a78d6), y el azul vivo de marca queda
+   a ΔE 12,7 de ella (OKLab ×100) —tan cerca que «azul» significaría dos cosas
+   en la misma pantalla, un control y una serie—. El azul noche está a ΔE 38,6 y
+   da 18,1:1 con texto blanco. Se midió, no se estimó. El azul vivo conserva su
+   papel donde no hay gráficas que confundir.
+
+   Los colores de ESTADO (bien / atención / grave / crítico) son un cuarto grupo
+   reservado. Nunca actúan como «serie 4», y siempre viajan con icono y
+   etiqueta: el color no carga solo el significado.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Tipografías de marca, servidas desde el propio dominio.
+   --------------------------------------------------------------------------
+   Son las dos fuentes del manual. Van alojadas aquí y no en un CDN por dos
+   razones: la aplicación de campo es una PWA que tiene que verse igual sin
+   señal, y un tercero menos es un tercero menos al que pedirle permiso para
+   los datos de quien navega.
+
+   Ambas son variables —un solo archivo cubre de 100 a 900—, y entre las dos
+   pesan 98 kB. `swap` para que el texto se lea desde el primer cuadro con la
+   fuente del sistema en lugar de dejar la pantalla en blanco.
+   -------------------------------------------------------------------------- */
+/* Las reglas @font-face NO viven aqui, sino en la plantilla Blade.
+ *
+ * El motivo: la direccion de la fuente tiene que llevar la ruta base de la
+ * aplicacion, y aqui no se sabe cual es. Escribirla absoluta -"/fuentes/..."-
+ * funciona en la raiz de un dominio y da 404 en cuanto la aplicacion cuelga de
+ * una subcarpeta; escribirla relativa haria que Vite intentara resolverla en
+ * tiempo de compilacion, donde esos archivos todavia no estan en su sitio.
+ *
+ * En Blade se resuelve con asset(), que si conoce la base. Ver app.blade.php.
+ */
+
+:root {
+    color-scheme: light;
+
+    /* --- superficies e ink ------------------------------------------------
+       Neutros sesgados hacia el azul pálido de la marca (#D2E3F3), no grises
+       puros. Un gris neutro al lado de un azul saturado se ve sucio; este sesgo
+       es lo que hace que la pantalla lea como un conjunto y no como dos paletas
+       pegadas. El ink es el azul noche del manual, no un negro genérico. */
+    --fondo:        #F3F6FC;
+    --superficie:   #FFFFFF;
+    --superficie-2: #EBF1FA;
+    --superficie-3: #DDE7F5;
+    --ink:          #0D1333;
+    --ink-2:        #3D465F;
+    --ink-3:        #69738C;
+    --linea:        #D3DDEC;
+    --linea-fuerte: #AFBDD4;
+
+    /* --- identidad --------------------------------------------------------
+       El azul noche del manual. Es el color dominante de la marca y además el
+       que resuelve el choque con la serie 1 de datos: ΔE 38,6 contra ella y
+       18,1:1 con texto blanco. */
+    --acento:       #0D1333;
+    --acento-suave: #D2E3F3;
+    --acento-ink:   #0D1333;
+    --sobre-acento: #FFFFFF;
+
+    /* El acento desplazado hacia el azul vivo. Hace falta un token propio: el
+       acento es casi negro, y aclararlo con `brightness()` —como se hacía—
+       produce un cambio que no se ve. Al virar hacia el azul de la marca el
+       botón sí acusa el puntero encima. */
+    --acento-hover: #09245B;
+
+    /* El azul vivo de la marca, con su papel acotado: enlaces, acentos de
+       portada y superficies de identidad. Fuera de las gráficas no hay nada
+       con qué confundirlo, y ahí sí es el color que la marca pide. */
+    --marca:        #004CB9;
+    --marca-ink-sobre-claro: #003C93;   /* el mismo azul, un paso más hondo,
+                                           para texto pequeño sobre blanco */
+
+    /* --- marca: superficies de identidad ----------------------------------
+       Solo para el panel del ingreso y la portada del sitio. Nunca visten un
+       dato: son fondo, no información. Van del azul noche al azul vivo, que es
+       el degradado del material impreso. */
+    --marca-1: #080C22;
+    --marca-2: #0D1333;
+    --marca-3: #004CB9;
+    --marca-ink:      #FFFFFF;
+    --marca-ink-2:    #D2E3F3;
+    --marca-ink-3:    #93AFD8;
+    --marca-linea:    rgba(255, 255, 255, .14);
+    --marca-vidrio:   rgba(255, 255, 255, .07);
+
+    /* --- estado (reservados: jamás como serie) ----------------------------
+       Los de abajo visten MARCAS —un punto, una barra, un filo—, donde el
+       mínimo exigible es 3:1. */
+    --bien:    #0CA30C;
+    --atencion:#FAB219;
+    --grave:   #EC835A;
+    --critico: #D03B3B;
+    --bien-suave:    #E3F3E3;
+    --atencion-suave:#FDF2DA;
+    --grave-suave:   #FBE8E0;
+    --critico-suave: #F8E2E2;
+
+    /* Y estos visten TEXTO, que necesita 4,5:1. No es una duplicación por
+       gusto: el verde de marca da 3,35:1 sobre blanco y el ámbar 1,83:1, así
+       que usarlos para escribir —como se venía haciendo en las insignias de
+       meta— dejaba el dictamen por debajo del mínimo legible. Medido, no
+       supuesto: 5,53:1 y 5,76:1 sobre la superficie. */
+    --bien-ink:     #087A08;
+    --atencion-ink: #8A5D00;
+    --critico-ink:  #B32626;
+
+    /* --- datos: categórica validada, orden fijo, nunca cíclico ------------ */
+    --serie-1: #2a78d6;   /* azul     */
+    --serie-2: #eb6834;   /* naranja  */
+    --serie-3: #1baf7a;   /* aqua     */
+    --serie-4: #eda100;   /* amarillo */
+    --serie-5: #e87ba4;   /* magenta  */
+    --serie-6: #008300;   /* verde    */
+    --serie-7: #4a3aa7;   /* violeta  */
+    --serie-8: #e34948;   /* rojo     */
+
+    /* --- datos: rampa secuencial (magnitud continua) ---------------------- */
+    --sec-100: #cde2fb;
+    --sec-200: #9ec5f4;
+    --sec-300: #6da7ec;
+    --sec-400: #3987e5;
+    --sec-500: #256abf;
+    --sec-600: #184f95;
+    --sec-700: #0d366b;
+
+    /* --- cromo de gráfica ------------------------------------------------- */
+    --rejilla:  #E6EAF2;
+    --eje:      #C6CDDC;
+
+    --sombra: 0 1px 2px rgba(19, 27, 43, .06), 0 12px 32px -24px rgba(19, 27, 43, .4);
+
+    /* Las dos fuentes del manual, con sus papeles separados: League Spartan
+       —geométrica y cerrada, la del logotipo— para titulares y cifras grandes;
+       Work Sans para todo lo que se lee seguido, que aguanta tamaños pequeños
+       mucho mejor.
+
+       El monoespaciado no está en el manual, así que se toma del sistema: no
+       vale la pena una tercera descarga para los números de guía y los hashes,
+       y así la aplicación no depende de ningún CDN. */
+    --display: "League Spartan", "Segoe UI", system-ui, sans-serif;
+    --sans:    "Work Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono:    ui-monospace, "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+
+    --r-sm: 4px;
+    --r-md: 6px;
+    --r-lg: 10px;
+
+    /* Objetivo táctil mínimo. La interfaz de campo se usa con guantes, en moto
+       y a contraluz: 48 px no es una recomendación, es el piso. */
+    --toque: 48px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-tema="claro"]) {
+        color-scheme: dark;
+
+        /* El oscuro se construye sobre el azul noche del manual, no sobre un
+           gris azulado genérico: la superficie ES el color de la marca. */
+        --fondo:        #070B1C;
+        --superficie:   #0D1333;
+        --superficie-2: #151C40;
+        --superficie-3: #1E2751;
+        --ink:          #E9EFF9;
+        --ink-2:        #AFBBD6;
+        --ink-3:        #7E8CAC;
+        --linea:        #262F55;
+
+        /* 3,56:1 sobre la superficie. El valor anterior daba 1,92:1, por debajo
+           del mínimo que pide un borde de control: se corrigió al pasar por
+           aquí. */
+        --linea-fuerte: #5D6BA6;
+
+        /* El azul pálido del manual hace de acento en oscuro. Mismo criterio
+           que en claro: ΔE 31,5 contra la serie 1 de este modo (#3987e5) y
+           13,8:1 sobre la superficie. */
+        --acento:       #D2E3F3;
+        --acento-suave: #17204A;
+        --acento-ink:   #D2E3F3;
+        --sobre-acento: #0D1333;
+        --acento-hover: #B5CFE9;
+
+        /* El azul vivo aclarado: a plena saturación sobre fondo oscuro no
+           alcanza para leerse. Este da 7,3:1. */
+        --marca:        #6FA6F5;
+        --marca-ink-sobre-claro: #9DC4FA;
+
+        /* El panel de marca ya es oscuro en claro: en oscuro solo se profundiza
+           un paso para que no compita con la superficie de la aplicación. */
+        --marca-1: #05081A;
+        --marca-2: #0A0F28;
+        --marca-3: #003A8F;
+
+        --bien-suave:    #14301A;
+        --atencion-suave:#33280F;
+        --grave-suave:   #33220F;
+        --critico-suave: #3B1D1B;
+
+        /* Sobre fondo oscuro el problema se invierte: los de marca son
+           demasiado oscuros para escribir con ellos. 9,5:1 y 11,3:1. */
+        --bien-ink:     #4ED64E;
+        --atencion-ink: #F5C662;
+        --critico-ink:  #FF9A95;
+
+        /* Los mismos ocho matices, re-escalonados para la superficie oscura.
+           No es una inversión automática: es una selección validada. */
+        --serie-1: #3987e5;
+        --serie-2: #d95926;
+        --serie-3: #199e70;
+        --serie-4: #c98500;
+        --serie-5: #d55181;
+        --serie-6: #008300;
+        --serie-7: #9085e9;
+        --serie-8: #e66767;
+
+        --sec-100: #0d366b;
+        --sec-200: #184f95;
+        --sec-300: #256abf;
+        --sec-400: #3987e5;
+        --sec-500: #6da7ec;
+        --sec-600: #9ec5f4;
+        --sec-700: #cde2fb;
+
+        --rejilla: #222C3E;
+        --eje:     #37425A;
+
+        --sombra: 0 1px 2px rgba(0, 0, 0, .5), 0 14px 36px -26px rgba(0, 0, 0, 1);
+    }
+}
+
+:root[data-tema="oscuro"] {
+    color-scheme: dark;
+
+    --fondo:        #0B1220;
+    --superficie:   #131B2B;
+    --superficie-2: #1B2436;
+    --superficie-3: #232E43;
+    --ink:          #E8ECF4;
+    --ink-2:        #AEB8CA;
+    --ink-3:        #7F8A9E;
+    --linea:        #2A3446;
+    --linea-fuerte: #3D4A60;
+
+    --acento:       #B4C4EA;
+    --acento-suave: #1B2545;
+    --acento-ink:   #C9D6F2;
+    --sobre-acento: #08142E;
+
+    --marca-1: #050F26;
+    --marca-2: #0A2350;
+    --marca-3: #103371;
+
+    --bien-suave:    #14301A;
+    --atencion-suave:#33280F;
+    --grave-suave:   #33220F;
+    --critico-suave: #3B1D1B;
+
+    --serie-1: #3987e5;
+    --serie-2: #d95926;
+    --serie-3: #199e70;
+    --serie-4: #c98500;
+    --serie-5: #d55181;
+    --serie-6: #008300;
+    --serie-7: #9085e9;
+    --serie-8: #e66767;
+
+    --sec-100: #0d366b;
+    --sec-200: #184f95;
+    --sec-300: #256abf;
+    --sec-400: #3987e5;
+    --sec-500: #6da7ec;
+    --sec-600: #9ec5f4;
+    --sec-700: #cde2fb;
+
+    --rejilla: #222C3E;
+    --eje:     #37425A;
+
+    --sombra: 0 1px 2px rgba(0, 0, 0, .5), 0 14px 36px -26px rgba(0, 0, 0, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app { height: 100%; }
+
+body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    /* En un teléfono en la calle no debe haber rebote horizontal accidental. */
+    overscroll-behavior-y: contain;
+}
+
+/* Los titulares llevan la fuente del logotipo. League Spartan es geométrica y
+   de caja alta cerrada: manda en tamaños grandes y se vuelve incómoda en un
+   párrafo, así que llega hasta el título y no más abajo. */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--display);
+    font-weight: 700;
+    letter-spacing: -.015em;
+    text-wrap: balance;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+button { cursor: pointer; }
+
+:focus-visible {
+    outline: 2px solid var(--acento);
+    outline-offset: 2px;
+    border-radius: var(--r-sm);
+}
+
+/* Los dígitos que se comparan en columna se alinean. Siempre. */
+.num, table td.num, .kpi-valor {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- controles de formulario --------------------------------------------
+   Se definen una sola vez y globalmente. Cuando cada pantalla se inventaba su
+   propio input, el sistema terminaba con cinco alturas y tres radios distintos
+   para el mismo control. */
+
+.control {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    border: 1px solid var(--linea-fuerte);
+    border-radius: 9px;
+    background: var(--superficie);
+    padding: .58rem .75rem;
+    font-size: .88rem;
+    font-family: inherit;
+    color: var(--ink);
+    transition: border-color .13s ease, box-shadow .13s ease;
+}
+
+.control::placeholder { color: var(--ink-3); opacity: .8; }
+
+.control:hover:not(:disabled):not(:focus) { border-color: var(--ink-3); }
+
+.control:focus {
+    outline: none;
+    border-color: var(--acento);
+    box-shadow: 0 0 0 3px var(--acento-suave);
+}
+
+.control:disabled { background: var(--superficie-2); color: var(--ink-3); cursor: not-allowed; }
+
+select.control {
+    appearance: none;
+    padding-right: 2.2rem;
+    /* La flecha se dibuja en el fondo: el control nativo se ve distinto en cada
+       navegador y rompía la alineación con los campos de texto de al lado. */
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+}
+
+textarea.control { min-height: 84px; resize: vertical; line-height: 1.5; }
+
+.control--num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* Grupo de control con botón adosado, como «placa + Buscar». */
+.control-grupo { display: flex; gap: .45rem; align-items: stretch; }
+.control-grupo .control { border-radius: 9px 0 0 9px; }
+.control-grupo > .boton { border-radius: 0 9px 9px 0; margin-left: -.45rem; }
+
+/* --- botones -------------------------------------------------------------- */
+
+.boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    min-height: 44px;
+    padding: .55rem 1.05rem;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    font-size: .86rem;
+    font-weight: 600;
+    letter-spacing: -.005em;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: filter .13s ease, background .13s ease, transform .07s ease;
+}
+
+.boton:active:not(:disabled) { transform: translateY(1px); }
+.boton:disabled { opacity: .45; cursor: not-allowed; }
+
+.boton--primario { background: var(--acento); color: var(--sobre-acento); }
+.boton--primario:hover:not(:disabled) { background: var(--acento-hover); }
+
+.boton--secundario { background: var(--superficie); border-color: var(--linea-fuerte); color: var(--ink); }
+.boton--secundario:hover:not(:disabled) { background: var(--superficie-2); }
+
+.boton--fantasma { background: transparent; color: var(--acento); }
+.boton--fantasma:hover:not(:disabled) { background: var(--acento-suave); }
+
+.boton--peligro { background: var(--superficie); border-color: var(--critico); color: var(--critico); }
+.boton--peligro:hover:not(:disabled) { background: var(--critico-suave); }
+
+.boton--compacto { min-height: 34px; padding: .3rem .7rem; font-size: .78rem; }
+
+/* --- utilidades compartidas ---------------------------------------------- */
+
+.tarjeta {
+    background: var(--superficie);
+    border: 1px solid var(--linea);
+    border-radius: var(--r-md);
+    overflow: hidden;
+}
+
+.tarjeta-cab {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .7rem .9rem;
+    border-bottom: 1px solid var(--linea);
+    background: var(--superficie-2);
+}
+
+.tarjeta-titulo {
+    font-size: .88rem;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    margin: 0;
+}
+
+.tarjeta-sub {
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+}
+
+.tarjeta-cuerpo { padding: .9rem; }
+
+.pastilla {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: .18rem .45rem;
+    border-radius: var(--r-sm);
+    white-space: nowrap;
+}
+
+/* --- tabla de datos ------------------------------------------------------ */
+
+.tabla-datos { width: 100%; border-collapse: collapse; font-size: .82rem; }
+
+.tabla-datos thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    font-family: var(--mono);
+    font-size: .58rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    text-align: left;
+    padding: .6rem .85rem;
+    background: var(--superficie-2);
+    border-bottom: 1px solid var(--linea);
+    white-space: nowrap;
+}
+
+.tabla-datos tbody td {
+    padding: .6rem .85rem;
+    border-bottom: 1px solid var(--linea);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.tabla-datos tbody tr:last-child td { border-bottom: none; }
+.tabla-datos tbody tr:hover { background: var(--superficie-2); }
+.tabla-datos tbody tr.fila--inactiva { opacity: .5; }
+
+.tabla-datos .celda-envuelve { white-space: normal; max-width: 38ch; }
+.tabla-datos .celda-tenue { color: var(--ink-3); }
+.tabla-datos .celda-acciones { display: flex; gap: .3rem; }
+
+.tabla-datos .celda-principal { font-weight: 600; color: var(--ink); }
+
+.pastilla--bien     { background: var(--bien-suave);     color: var(--bien); }
+.pastilla--atencion { background: var(--atencion-suave); color: var(--atencion); }
+.pastilla--grave    { background: var(--grave-suave);    color: var(--grave); }
+.pastilla--critico  { background: var(--critico-suave);  color: var(--critico); }
+.pastilla--neutral  { background: var(--superficie-3);   color: var(--ink-3); }
+
+/* Todo lo ancho hace su propio scroll: el cuerpo de la página nunca se
+   desplaza en horizontal, ni en un teléfono de 360 px. */
+.desliza {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.solo-lector {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .001ms !important;
+        transition-duration: .001ms !important;
+    }
+}

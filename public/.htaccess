@@ -1,0 +1,51 @@
+# ============================================================================
+# Avalia Logística — reglas de Apache para la raíz pública
+# ----------------------------------------------------------------------------
+# Sin este archivo, Apache solo sabe servir «/»: cualquier otra dirección
+# —/ingreso, /rastreo, /api/v1/…— devuelve 404, porque no existe una carpeta
+# con ese nombre. La aplicación resuelve sus rutas por dentro, así que todo
+# tiene que llegar a index.php.
+#
+# Faltaba en el proyecto porque hasta ahora se servía con `artisan serve`, que
+# enruta por su cuenta y no lee este archivo.
+# ============================================================================
+
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        # MultiViews haría que Apache adivinara el archivo a partir de la
+        # dirección —«/rastreo» podría acabar sirviendo «rastreo.php»— y eso
+        # atropella el enrutador de la aplicación.
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # La cabecera Authorization no llega a PHP por sí sola con algunos módulos,
+    # y sin ella TODA la API con token deja de autenticar.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Redirigir las barras finales sobrantes en carpetas reales.
+    #
+    # La sustitucion va SIN barra inicial a proposito. Con ella -`/$1`- la
+    # direccion se reconstruye desde la raiz del servidor, y en un despliegue
+    # que cuelga de una subcarpeta eso se come el prefijo: pedir
+    # /Avalia/public/ acababa redirigiendo a /, es decir, fuera de la
+    # aplicacion. Sin la barra, Apache resuelve relativo a esta carpeta y
+    # funciona igual en la raiz que en una subcarpeta.
+    #
+    # El patron exige al menos un caracter -`.+` y no `.*`- para que la propia
+    # raiz, que es «/» a secas, no entre y se redirija a la nada.
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^(.+)/$ $1 [L,R=301]
+
+    # Todo lo que no sea un archivo o carpeta existente va al enrutador.
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Nada de listar carpetas aunque mod_rewrite no estuviera disponible.
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>
