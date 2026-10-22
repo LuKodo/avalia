@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../api/cliente'
+import { sesion } from '../sesion'
 import Hero from '../componentes/Hero.vue'
 import { fechaCorta, fechaLarga } from '../graficos/util'
 
@@ -27,6 +28,10 @@ const GRUPOS = [
     { clave: 'entregadas',           texto: 'Entregadas' },
     { clave: 'con_novedad',          texto: 'Con novedad' },
     { clave: 'cerradas_sin_entrega', texto: 'Cerradas sin entrega' },
+    // Aparte de «cerradas sin entrega»: una cancelación del propio cliente
+    // antes de que la caja saliera no es un fallo del servicio, y mezclarlas
+    // ensuciaría el único grupo que sirve para mirar lo que se torció.
+    { clave: 'canceladas',           texto: 'Canceladas' },
 ]
 
 const filtros = ref({ estado: '', desde: '', hasta: '', buscar: '', sede: '' })
@@ -139,6 +144,9 @@ function estadoDe(orden) {
     const estados = (orden.paquetes ?? []).map((p) => p.estado)
 
     if (estados.length === 0) return null
+    // Si TODAS están canceladas, el envío está cancelado. Si solo algunas, el
+    // envío sigue vivo y manda lo que de verdad va en la calle.
+    if (estados.every((e) => e === 'cancelado')) return 'cancelado'
     if (estados.includes('siniestro')) return 'siniestro'
     if (estados.includes('devuelto')) return 'devuelto'
     if (estados.includes('novedad')) return 'novedad'
@@ -159,12 +167,64 @@ const ETIQUETAS = {
     reprogramado:        ['Reprogramado', 'pastilla--atencion'],
     devuelto:            ['Devuelto',     'pastilla--critico'],
     siniestro:           ['Siniestro',    'pastilla--critico'],
+    cancelado:           ['Cancelada',    'pastilla--neutral'],
 }
 
 const etiqueta = (e) => ETIQUETAS[e] ?? ['En curso', 'pastilla--neutral']
 
 function limpiar() {
     filtros.value = { estado: '', desde: '', hasta: '' }
+}
+
+/* ------------------------------------------------- cancelar una guía ----
+ *
+ * Solo mientras ninguna caja haya salido. Cancelada no es borrada: la guía
+ * sigue en la lista, marcada, y sus eventos siguen en la bitácora. Es lo que
+ * permite responder en marzo por qué un número de guía no existe en ningún
+ * despacho.
+ */
+const puedeCancelar = computed(() => sesion.tiene('cliente', 'administrador', 'operador'))
+
+function esCancelable(orden) {
+    const estados = (orden.paquetes ?? []).map((p) => p.estado)
+
+    return estados.length > 0 && estados.some((e) => e === 'creado')
+}
+
+/** Confirmación de lo último que se hizo, para no dejarlo en silencio. */
+const aviso = ref(null)
+
+const cancelando = ref(null)
+const motivoCancelar = ref('')
+const errorCancelar = ref(null)
+const enviandoCancelar = ref(false)
+
+function abrirCancelar(orden) {
+    cancelando.value = orden
+    motivoCancelar.value = ''
+    errorCancelar.value = null
+}
+
+async function confirmarCancelar() {
+    if (motivoCancelar.value.trim().length < 5) {
+        errorCancelar.value = 'Escriba por qué se cancela. Queda registrado con la guía.'
+
+        return
+    }
+
+    enviandoCancelar.value = true
+    errorCancelar.value = null
+
+    try {
+        const r = await api.cancelarOrden(cancelando.value.numero_guia, motivoCancelar.value.trim())
+        cancelando.value = null
+        aviso.value = r.mensaje
+        await cargar()
+    } catch (e) {
+        errorCancelar.value = e.cuerpo?.message ?? e.message
+    } finally {
+        enviandoCancelar.value = false
+    }
 }
 
 const hayFiltro = computed(() =>
@@ -302,9 +362,57 @@ const hayFiltro = computed(() =>
                         >
                             {{ imprimiendo === o.numero_guia ? '…' : 'Guía' }}
                         </button>
+
+                        <!--
+                            Solo aparece mientras se puede. Un botón que está
+                            siempre y falla casi siempre enseña a no fiarse de
+                            los botones.
+                        -->
+                        <button
+                            v-if="puedeCancelar && esCancelable(o)"
+                            type="button" class="accion accion--riesgo"
+                            @click="abrirCancelar(o)"
+                        >
+                            Cancelar
+                        </button>
                     </div>
                 </li>
             </ul>
+
+            <p v-if="aviso" class="aviso-hecho" role="status">
+                {{ aviso }}
+                <button type="button" class="aviso-cerrar" @click="aviso = null">Ocultar</button>
+            </p>
+
+            <!-- --------------------------------------- cancelar guía -->
+            <div
+                v-if="cancelando" class="fondo-dialogo" role="dialog" aria-modal="true"
+                aria-label="Cancelar guía" @click.self="cancelando = null"
+            >
+                <div class="dialogo">
+                    <h2 class="dialogo-tit">Cancelar {{ cancelando.numero_guia }}</h2>
+                    <p class="dialogo-sub">
+                        La guía no se borra: queda marcada como cancelada, con su motivo y su
+                        fecha. Solo se cancelan las cajas que todavía no han salido.
+                    </p>
+
+                    <label class="dialogo-rotulo" for="motivo-cancelar">¿Por qué se cancela?</label>
+                    <textarea
+                        id="motivo-cancelar" v-model="motivoCancelar" class="dialogo-area" rows="3"
+                        placeholder="Ej.: se radicó dos veces la misma dispensación."
+                    />
+
+                    <p v-if="errorCancelar" class="dialogo-error">{{ errorCancelar }}</p>
+
+                    <div class="dialogo-pie">
+                        <button type="button" class="accion" @click="cancelando = null">Volver</button>
+                        <button
+                            type="button" class="accion accion--riesgo"
+                            :disabled="enviandoCancelar" @click="confirmarCancelar"
+                        >{{ enviandoCancelar ? 'Cancelando…' : 'Cancelar la guía' }}</button>
+                    </div>
+                </div>
+            </div>
 
             <nav v-if="datos.last_page > 1" class="paginas" aria-label="Páginas">
                 <button type="button" :disabled="pagina <= 1" @click="pagina--">Anterior</button>
@@ -317,6 +425,93 @@ const hayFiltro = computed(() =>
 
 <style scoped>
 .pagina { display: flex; flex-direction: column; gap: 1rem; }
+
+.accion--riesgo { color: var(--critico); border-color: var(--critico); }
+
+.aviso-hecho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .8rem;
+    margin: 0;
+    padding: .6rem .9rem;
+    border-left: 3px solid var(--bien);
+    border-radius: 0 8px 8px 0;
+    background: var(--superficie-2);
+    font-size: .85rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+}
+
+.aviso-cerrar {
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: .8rem;
+    color: var(--ink-3);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.fondo-dialogo {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgb(0 0 0 / .45);
+}
+
+.dialogo {
+    width: 100%;
+    max-width: 480px;
+    padding: 1.2rem;
+    border-radius: 14px;
+    background: var(--superficie);
+    box-shadow: 0 16px 48px rgb(0 0 0 / .3);
+}
+
+.dialogo-tit { margin: 0; font-size: 1.05rem; }
+
+.dialogo-sub {
+    margin: .4rem 0 0;
+    font-size: .85rem;
+    line-height: 1.55;
+    color: var(--ink-3);
+}
+
+.dialogo-rotulo {
+    display: block;
+    margin: .9rem 0 .35rem;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+}
+
+.dialogo-area {
+    width: 100%;
+    border: 1px solid var(--linea-fuerte);
+    border-radius: 8px;
+    padding: .55rem .7rem;
+    font: inherit;
+    font-size: .85rem;
+    color: var(--ink);
+    background: var(--superficie);
+    resize: vertical;
+}
+
+.dialogo-error { margin: .5rem 0 0; font-size: .8rem; color: var(--critico); }
+
+.dialogo-pie {
+    display: flex;
+    justify-content: flex-end;
+    gap: .5rem;
+    margin-top: 1rem;
+}
 
 .cab { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .cab h1 { margin: .15rem 0 0; font-size: 1.5rem; }

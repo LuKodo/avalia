@@ -193,22 +193,57 @@ export async function guardarTareas(tareas) {
         await bd.tareas.bulkPut(tareas.map((t) => {
             const previa = previas.get(String(t.paquete_id))
 
+            /*
+             * El orden manual del mensajero SOBREVIVE a la recarga.
+             *
+             * Es suyo y es del día: lo arma al cargar el vehículo y lo va
+             * cambiando en la calle. Que una sincronización —que ocurre cada
+             * treinta segundos— se lo deshiciera volvería la función inútil.
+             * Las tareas nuevas entran sin orden y la lista las pone al final.
+             */
+            const orden = previa?.orden ?? null
+
             if (enCola.has(String(t.paquete_id)) && previa) {
                 return {
                     ...t,
                     estado: previa.estado,
+                    orden,
                     sincronizando: true,
                     actualizado_en: ahora,
                 }
             }
 
-            return { ...t, sincronizando: false, actualizado_en: ahora }
+            return { ...t, orden, sincronizando: false, actualizado_en: ahora }
         }))
     })
 }
 
 export function tareasLocales() {
     return bd.tareas.toArray()
+}
+
+/**
+ * Guarda el orden en que el mensajero quiere hacer sus tareas.
+ *
+ * Vive solo en el dispositivo a propósito. No es una decisión de la operación
+ * —la asignación ya la tomó alguien— sino la forma en que esta persona va a
+ * recorrer su día: por dónde le queda de paso, dónde almuerza, qué portería
+ * cierra a mediodía. Subirlo al servidor obligaría a inventar qué pasa cuando
+ * dos pantallas lo cambian a la vez, para resolver un problema que nadie tiene.
+ *
+ * @param  {Array<string|number>}  ids  los paquetes en el orden deseado
+ */
+export async function guardarOrdenManual(ids) {
+    const posicion = new Map(ids.map((id, i) => [String(id), i]))
+
+    await bd.transaction('rw', bd.tareas, async () => {
+        const todas = await bd.tareas.toArray()
+
+        await bd.tareas.bulkPut(todas.map((t) => ({
+            ...t,
+            orden: posicion.get(String(t.paquete_id)) ?? t.orden ?? null,
+        })))
+    })
 }
 
 /** Paquetes con alguna acción esperando salir. Las posiciones GPS no cuentan. */

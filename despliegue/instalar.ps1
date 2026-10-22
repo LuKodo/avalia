@@ -581,6 +581,29 @@ if (-not $SoloActualizar) {
         $urlAnterior = (Get-Content $envFile |
             Where-Object { $_ -match '^\s*APP_URL\s*=\s*\S' } |
             Select-Object -First 1)
+
+        <#
+            La bandera del motor antiguo tambien se conserva, y es la mas
+            traicionera de las tres.
+
+            DB_MOTOR_ANTIGUO activa la capa de compatibilidad con MySQL 5.5:
+            sin ella Laravel consulta information_schema con sintaxis de 5.7+ y
+            las migraciones mueren con «Unknown column 'generation_expression'».
+            Pero el sistema ARRANCA igual y las pantallas funcionan, asi que la
+            perdida no se nota hasta la siguiente migracion, que puede ser
+            semanas despues y sin relacion aparente con la instalacion.
+
+            Si el guion no detecta el motor antiguo en este arranque pero el
+            .env anterior decia que si, manda el .env: el motor no cambio solo.
+        #>
+        $motorAnterior = (Get-Content $envFile |
+            Where-Object { $_ -match '^\s*DB_MOTOR_ANTIGUO\s*=\s*true' } |
+            Select-Object -First 1)
+
+        if ($motorAnterior -and -not $script:ModoAntiguo) {
+            Aviso 'El .env anterior declaraba DB_MOTOR_ANTIGUO=true y se conserva.'
+            $script:ModoAntiguo = $true
+        }
     }
 
     $urlBase = "http://$(if($Dominio){$Dominio}else{'localhost'}):$Puerto"

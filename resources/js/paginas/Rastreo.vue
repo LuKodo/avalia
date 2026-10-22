@@ -6,6 +6,7 @@ import EscanerQr from '../componentes/EscanerQr.vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../api/cliente'
+import { sesion } from '../sesion'
 import { hora, numero } from '../graficos/util'
 
 /**
@@ -100,6 +101,49 @@ async function buscar() {
             : e.message
     } finally {
         buscando.value = false
+    }
+}
+
+/* ------------------------------------------------- reapertura de entrega --
+ *
+ * Solo operación, y solo sobre una entrega ya cerrada. No borra nada: la
+ * evidencia anterior queda marcada como reemplazada y el motivo entra en la
+ * bitácora. Es la respuesta al caso real —se cerró la entrega y faltaba el
+ * acta— sin el botón que borra evidencias, que acabaría con lo único que hace
+ * que este soporte sirva como prueba.
+ */
+const puedeReabrir = computed(() => sesion.tiene('administrador', 'operador'))
+
+const reapertura = ref(null)
+const motivoReapertura = ref('')
+const reabriendo = ref(false)
+const errorReapertura = ref(null)
+
+function abrirReapertura(paquete) {
+    reapertura.value = paquete
+    motivoReapertura.value = ''
+    errorReapertura.value = null
+}
+
+async function confirmarReapertura() {
+    if (motivoReapertura.value.trim().length < 20) {
+        errorReapertura.value = 'Explique en al menos veinte caracteres por qué se reabre. Es lo único que va a quedar escrito.'
+        return
+    }
+
+    reabriendo.value = true
+    errorReapertura.value = null
+
+    try {
+        await api.reabrirEntrega(reapertura.value.paquete_id, motivoReapertura.value.trim())
+        reapertura.value = null
+        // Se vuelve a consultar en vez de parchear la fila en memoria: lo que
+        // cambió no es solo el estado, también la lista de reaperturas.
+        await buscar()
+    } catch (e) {
+        errorReapertura.value = e.cuerpo?.message ?? e.message
+    } finally {
+        reabriendo.value = false
     }
 }
 
@@ -312,6 +356,23 @@ onBeforeUnmount(() => window.removeEventListener('keydown', alTeclear))
                         <span class="paquete-cons">{{ p.consecutivo }}</span>
                     </div>
 
+                    <!--
+                        Qué dispensaciones iban en ESTA caja.
+                        
+                        Cuando una guía lleva varias y una se devuelve, es la
+                        pregunta que el cliente hace primero: ¿cuáles llegaron?
+                        Con la lista colgando solo del envío no tenía respuesta.
+                    -->
+                    <p v-if="p.referencias?.length" class="refs-caja">
+                        <span class="refs-et">{{ p.referencias.length }} en esta caja:</span>
+                        <span v-for="(ref, i) in p.referencias.slice(0, 8)" :key="ref.valor" class="refs-val num">
+                            {{ ref.valor }}<template v-if="i < Math.min(p.referencias.length, 8) - 1">,</template>
+                        </span>
+                        <span v-if="p.referencias.length > 8" class="refs-mas">
+                            y {{ p.referencias.length - 8 }} más
+                        </span>
+                    </p>
+
                     <!-- El bloque que el cliente vino a buscar -->
                     <dl v-if="p.entrega" class="soporte">
                         <div><dt>Fecha de entrega</dt><dd class="num">{{ p.entrega.fecha }}</dd></div>
@@ -356,6 +417,38 @@ onBeforeUnmount(() => window.removeEventListener('keydown', alTeclear))
                     </dl>
 
                     <p v-else class="pendiente">Este paquete todavía no se ha entregado.</p>
+
+                    <!--
+                        Entregas reemplazadas. Normalmente no hay ninguna y esto
+                        no se pinta. Cuando las hay, se ven: un soporte que
+                        cuenta una versión más limpia que la verdad no sirve
+                        como prueba de nada.
+                    -->
+                    <div v-if="p.reaperturas?.length" class="reaperturas">
+                        <p class="etiqueta">
+                            Esta entrega se reabrió
+                            {{ p.reaperturas.length === 1 ? 'una vez' : `${p.reaperturas.length} veces` }}
+                        </p>
+                        <ul>
+                            <li v-for="(r2, j) in p.reaperturas" :key="j">
+                                <span class="num">{{ fechaHora(r2.reabierta_en) }}</span>
+                                · {{ r2.reabierta_por ?? 'operación' }}
+                                — «{{ r2.motivo }}»
+                                <span class="tenue">
+                                    (la entrega reemplazada se registró el {{ fechaHora(r2.entregada_en) }})
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div v-if="p.entrega && puedeReabrir" class="acciones-paquete">
+                        <button type="button" class="boton-reabrir" @click="abrirReapertura(p)">
+                            Reabrir entrega
+                        </button>
+                        <span class="tenue">
+                            Para completar un acta o una firma que faltó. No borra la evidencia ya capturada.
+                        </span>
+                    </div>
 
                     <div v-if="p.evidencias?.length" class="evidencias">
                         <p class="etiqueta">
@@ -579,6 +672,44 @@ onBeforeUnmount(() => window.removeEventListener('keydown', alTeclear))
             </div>
         </article>
         <!-- Visor a tamano completo -->
+        <!-- ------------------------------------- reabrir una entrega -->
+        <div
+            v-if="reapertura" class="visor" role="dialog" aria-modal="true"
+            aria-label="Reabrir entrega" @click.self="reapertura = null"
+        >
+            <div class="visor-caja caja-reabrir">
+                <header class="visor-cab">
+                    <div>
+                        <p class="visor-tit">Reabrir la entrega de {{ reapertura.codigo }}</p>
+                        <p class="visor-sub">
+                            La evidencia ya capturada no se borra: queda marcada como reemplazada,
+                            con su fecha, y la reapertura entra en la bitácora con su nombre.
+                            El paquete vuelve a «en sitio» para que el mensajero complete la captura.
+                        </p>
+                    </div>
+                </header>
+
+                <label class="rotulo-reabrir" for="motivo-reapertura">
+                    ¿Por qué se reabre?
+                </label>
+
+                <textarea
+                    id="motivo-reapertura" v-model="motivoReapertura" class="area-reabrir" rows="4"
+                    placeholder="Ej.: la firma quedó en blanco y el acta de recepción no se adjuntó."
+                />
+
+                <p v-if="errorReapertura" class="aviso-reabrir">{{ errorReapertura }}</p>
+
+                <footer class="visor-pie">
+                    <button type="button" class="visor-abrir" @click="reapertura = null">Cancelar</button>
+                    <button
+                        type="button" class="boton-reabrir" :disabled="reabriendo"
+                        @click="confirmarReapertura"
+                    >{{ reabriendo ? 'Reabriendo…' : 'Reabrir y dejar constancia' }}</button>
+                </footer>
+            </div>
+        </div>
+
         <div v-if="visor" class="visor" role="dialog" aria-modal="true" :aria-label="visor.etiqueta" @click.self="cerrarVisor">
             <div class="visor-caja">
                 <header class="visor-cab">
@@ -601,6 +732,84 @@ onBeforeUnmount(() => window.removeEventListener('keydown', alTeclear))
 </template>
 
 <style scoped>
+/* --------------------------------------------- reapertura de entregas --- */
+
+.reaperturas {
+    margin: .6rem 0;
+    padding: .6rem .8rem;
+    border-left: 3px solid var(--atencion);
+    background: var(--superficie-2);
+    border-radius: 0 8px 8px 0;
+}
+
+.reaperturas ul { margin: .35rem 0 0; padding-left: 1.1rem; }
+
+.reaperturas li {
+    font-size: .8rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+}
+
+.acciones-paquete {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    flex-wrap: wrap;
+    margin-top: .7rem;
+    font-size: .78rem;
+}
+
+.boton-reabrir {
+    border: 1px solid var(--linea-fuerte);
+    border-radius: 8px;
+    padding: .4rem .85rem;
+    font: inherit;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--superficie);
+    cursor: pointer;
+}
+
+.boton-reabrir:hover:not(:disabled) { border-color: var(--acento); color: var(--acento); }
+.boton-reabrir:disabled { opacity: .55; cursor: progress; }
+
+.caja-reabrir { max-width: 560px; padding: 1.2rem; }
+
+.rotulo-reabrir {
+    display: block;
+    margin: .9rem 0 .35rem;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+}
+
+.area-reabrir {
+    width: 100%;
+    border: 1px solid var(--linea-fuerte);
+    border-radius: 8px;
+    padding: .55rem .7rem;
+    font: inherit;
+    font-size: .85rem;
+    color: var(--ink);
+    background: var(--superficie);
+    resize: vertical;
+}
+
+.aviso-reabrir {
+    margin: .5rem 0 0;
+    font-size: .8rem;
+    line-height: 1.5;
+    color: var(--critico);
+}
+
+.refs-caja { margin: .4rem 0 .6rem; font-size: .8rem; line-height: 1.6; color: var(--ink-2); }
+.refs-et { color: var(--ink-3); margin-right: .35rem; }
+.refs-val { font-weight: 600; margin-right: .2rem; }
+.refs-mas { color: var(--ink-3); }
+
 .mini-acuse { display: block; margin-top: .15rem; font-size: .68rem; font-weight: 600; }
 .mini-acuse--si { color: var(--bien, #1b7a46); }
 .mini-acuse--no { color: var(--ink-3); }

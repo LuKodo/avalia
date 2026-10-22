@@ -1,0 +1,1008 @@
+<title>Arquitectura LTP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{
+  --ground:#F4F6F3; --surface:#FFFFFF; --surface-2:#EAEEE9;
+  --ink:#14201C; --ink-2:#41504B; --ink-3:#6B7A74;
+  --line:#D4DBD5; --line-strong:#B3BEB7;
+  --accent:#0D5C4F; --accent-soft:#DDEBE6; --accent-ink:#0A463C;
+  --cold:#25628F; --cold-soft:#DEEAF4;
+  --warn:#8A5D08; --warn-soft:#F3E8D0;
+  --crit:#982E29; --crit-soft:#F4DFDD;
+  --ok:#2C6B3C; --ok-soft:#DEEDE1;
+  --shadow:0 1px 2px rgba(20,32,28,.05), 0 8px 24px -18px rgba(20,32,28,.35);
+  --serif:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --sans:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1614; --surface:#152020; --surface-2:#1C2926;
+    --ink:#E7EEEA; --ink-2:#AFBEB8; --ink-3:#7F908A;
+    --line:#2A3833; --line-strong:#3E4F49;
+    --accent:#54C2A8; --accent-soft:#123029; --accent-ink:#7FD7C1;
+    --cold:#74B4E2; --cold-soft:#12293A;
+    --warn:#DCA847; --warn-soft:#33280F;
+    --crit:#E3746C; --crit-soft:#3B1D1B;
+    --ok:#72C186; --ok-soft:#15301C;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -20px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1614; --surface:#152020; --surface-2:#1C2926;
+  --ink:#E7EEEA; --ink-2:#AFBEB8; --ink-3:#7F908A;
+  --line:#2A3833; --line-strong:#3E4F49;
+  --accent:#54C2A8; --accent-soft:#123029; --accent-ink:#7FD7C1;
+  --cold:#74B4E2; --cold-soft:#12293A;
+  --warn:#DCA847; --warn-soft:#33280F;
+  --crit:#E3746C; --crit-soft:#3B1D1B;
+  --ok:#72C186; --ok-soft:#15301C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -20px rgba(0,0,0,.9);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--serif); font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.doc{
+  display:grid;
+  grid-template-columns:
+    [full-start] minmax(1.25rem,1fr)
+    [wide-start] minmax(0,170px)
+    [main-start] minmax(0,68ch)
+    [main-end] minmax(0,170px)
+    [wide-end] minmax(1.25rem,1fr) [full-end];
+  padding-bottom:0;
+}
+.doc > *{grid-column:main}
+.wide{grid-column:wide}
+h1,h2,h3,h4{font-family:var(--sans); text-wrap:balance; margin:0}
+p{margin:0 0 1.05em}
+a{color:var(--accent); text-underline-offset:3px}
+a:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:2px}
+
+.masthead{grid-column:full; background:var(--surface); border-bottom:1px solid var(--line)}
+.masthead-inner{max-width:1080px; margin:0 auto; padding:3.2rem 1.5rem 2.2rem}
+.eyebrow{
+  font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 1.1rem; display:flex; flex-wrap:wrap; gap:.5rem 1rem;
+}
+.wordmark{
+  font-family:var(--sans); font-weight:700; font-size:clamp(3.4rem,11vw,6rem);
+  letter-spacing:-.045em; line-height:.9; margin:0; color:var(--ink);
+}
+.wordmark span{color:var(--accent)}
+.lede{
+  font-size:clamp(1.05rem,2.4vw,1.3rem); color:var(--ink-2); max-width:52ch;
+  margin:1.1rem 0 0; line-height:1.5;
+}
+.factbar{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1px; background:var(--line); border:1px solid var(--line);
+  margin:2.4rem 0 0;
+}
+.fact{background:var(--surface); padding:.85rem 1rem}
+.fact dt{
+  font-family:var(--mono); font-size:.66rem; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 .3rem;
+}
+.fact dd{margin:0; font-family:var(--sans); font-weight:600; font-size:.95rem; color:var(--ink)}
+
+.tocbar{
+  grid-column:full; position:sticky; top:0; z-index:20;
+  background:var(--ground); border-bottom:1px solid var(--line);
+}
+.tocbar-inner{
+  max-width:1080px; margin:0 auto; padding:.55rem 1.5rem;
+  display:flex; gap:1.4rem; overflow-x:auto;
+}
+.tocbar a{
+  font-family:var(--sans); font-size:.78rem; font-weight:500;
+  color:var(--ink-3); text-decoration:none; white-space:nowrap; padding:.2rem 0;
+}
+.tocbar a:hover{color:var(--accent)}
+
+section{margin-top:3.6rem; scroll-margin-top:4rem}
+.sec-label{
+  font-family:var(--mono); font-size:.68rem; letter-spacing:.15em; text-transform:uppercase;
+  color:var(--accent); margin:0 0 .5rem; display:block;
+}
+h2{
+  font-size:clamp(1.5rem,3.6vw,2rem); font-weight:600; letter-spacing:-.02em;
+  line-height:1.15; margin:0 0 1rem; padding-bottom:.7rem; border-bottom:2px solid var(--ink);
+}
+h3{font-size:1.12rem; font-weight:600; letter-spacing:-.01em; margin:2.2rem 0 .6rem}
+h4{
+  font-family:var(--mono); font-size:.74rem; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:500; margin:1.6rem 0 .5rem;
+}
+ul,ol{margin:0 0 1.1em; padding-left:1.2rem}
+li{margin-bottom:.42em}
+li::marker{color:var(--ink-3)}
+strong{font-weight:600}
+code{
+  font-family:var(--mono); font-size:.85em; background:var(--surface-2);
+  padding:.12em .38em; border-radius:3px; color:var(--ink);
+}
+
+.callout{
+  background:var(--surface); border-left:3px solid var(--accent);
+  padding:1.05rem 1.2rem; margin:1.6rem 0; font-size:.95rem; box-shadow:var(--shadow);
+}
+.callout.is-warn{border-left-color:var(--warn); background:var(--warn-soft); box-shadow:none}
+.callout.is-crit{border-left-color:var(--crit); background:var(--crit-soft); box-shadow:none}
+.callout p:last-child{margin-bottom:0}
+.callout .tag{
+  font-family:var(--mono); font-size:.66rem; letter-spacing:.13em; text-transform:uppercase;
+  display:block; margin-bottom:.4rem; color:var(--ink-2);
+}
+.scroller{overflow-x:auto; margin:1.4rem 0; border:1px solid var(--line); background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-family:var(--sans); font-size:.86rem}
+th,td{text-align:left; padding:.68rem .85rem; border-bottom:1px solid var(--line); vertical-align:top}
+thead th{
+  font-family:var(--mono); font-size:.66rem; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:500; background:var(--surface-2); white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:none}
+td.num{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+.pill{
+  display:inline-block; font-family:var(--mono); font-size:.66rem; letter-spacing:.08em;
+  text-transform:uppercase; padding:.16rem .45rem; border-radius:2px; white-space:nowrap;
+}
+.p-accent{background:var(--accent-soft); color:var(--accent-ink)}
+.p-cold{background:var(--cold-soft); color:var(--cold)}
+.p-warn{background:var(--warn-soft); color:var(--warn)}
+.p-crit{background:var(--crit-soft); color:var(--crit)}
+.p-ok{background:var(--ok-soft); color:var(--ok)}
+
+.stackdiag{margin:1.8rem 0; display:flex; flex-direction:column; gap:.5rem}
+.tier{
+  background:var(--surface); border:1px solid var(--line); padding:.85rem .95rem;
+  display:grid; grid-template-columns:112px 1fr; gap:.9rem; align-items:start;
+}
+.tier-name{
+  font-family:var(--mono); font-size:.66rem; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-3); padding-top:.35rem;
+}
+.tier-boxes{display:flex; flex-wrap:wrap; gap:.45rem}
+.box{
+  font-family:var(--sans); font-size:.8rem; font-weight:500; line-height:1.25;
+  border:1px solid var(--line-strong); background:var(--surface-2);
+  padding:.42rem .6rem; border-radius:2px; color:var(--ink);
+}
+.box small{display:block; font-weight:400; font-size:.72rem; color:var(--ink-3); font-family:var(--mono)}
+.box.acc{border-color:var(--accent); background:var(--accent-soft); color:var(--accent-ink)}
+.box.acc small{color:var(--accent-ink); opacity:.75}
+.box.cold{border-color:var(--cold); background:var(--cold-soft); color:var(--cold)}
+.box.cold small{color:var(--cold); opacity:.75}
+.flowarrow{
+  font-family:var(--mono); font-size:.66rem; letter-spacing:.1em; color:var(--ink-3);
+  text-align:center; padding:.05rem 0;
+}
+@media (max-width:620px){
+  .tier{grid-template-columns:1fr; gap:.5rem}
+  .tier-name{padding-top:0}
+}
+
+.states{display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; margin:1.4rem 0}
+.state{
+  font-family:var(--mono); font-size:.72rem;
+  border:1px solid var(--line-strong); padding:.3rem .5rem; background:var(--surface); border-radius:2px;
+}
+.state.term{border-color:var(--ok); background:var(--ok-soft); color:var(--ok)}
+.state.exc{border-color:var(--warn); background:var(--warn-soft); color:var(--warn)}
+.arrow{color:var(--ink-3); font-family:var(--mono); font-size:.8rem}
+
+.phases{display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line); margin:1.6rem 0}
+.phase{background:var(--surface); padding:1.1rem 1.2rem; display:grid; grid-template-columns:56px 1fr; gap:1.1rem}
+.phase-n{
+  font-family:var(--sans); font-weight:700; font-size:1.9rem; line-height:1;
+  color:var(--accent); letter-spacing:-.04em; font-variant-numeric:tabular-nums;
+}
+.phase h3{margin:0 0 .15rem; font-size:1.02rem}
+.phase-meta{
+  font-family:var(--mono); font-size:.7rem; letter-spacing:.05em; color:var(--ink-3);
+  margin:0 0 .6rem; display:flex; flex-wrap:wrap; gap:.3rem .9rem;
+}
+.phase ul{margin:0; font-size:.9rem; font-family:var(--sans)}
+.phase li{margin-bottom:.25em}
+@media (max-width:620px){ .phase{grid-template-columns:1fr; gap:.3rem} }
+
+footer{grid-column:full; margin-top:4.5rem; border-top:1px solid var(--line); background:var(--surface)}
+.footer-inner{
+  max-width:1080px; margin:0 auto; padding:2rem 1.5rem;
+  font-family:var(--mono); font-size:.72rem; color:var(--ink-3); line-height:1.7;
+}
+@media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
+</style>
+
+<div class="doc">
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <p class="eyebrow"><span>Documento de arquitectura</span><span>v1.0 · borrador</span><span>21 ago 2026</span></p>
+    <h1 class="wordmark">LTP<span>.</span></h1>
+    <p class="lede">Plataforma logística para el transporte de medicamentos e insumos médicos, con trazabilidad extremo a extremo, prueba de entrega digital y control de cadena de frío.</p>
+    <dl class="factbar">
+      <div class="fact"><dt>Entorno objetivo</dt><dd>On-premise</dd></div>
+      <div class="fact"><dt>Backend</dt><dd>PHP 8.3 · Laravel 11</dd></div>
+      <div class="fact"><dt>Base de datos</dt><dd>PostgreSQL 16 · PostGIS</dd></div>
+      <div class="fact"><dt>Interfaz</dt><dd>Vue 3 · Vite</dd></div>
+      <div class="fact"><dt>Campo</dt><dd>PWA responsive</dd></div>
+      <div class="fact"><dt>Horizonte</dt><dd>31 semanas</dd></div>
+    </dl>
+  </div>
+</header>
+
+<nav class="tocbar" aria-label="Índice del documento">
+  <div class="tocbar-inner">
+    <a href="#resumen">Resumen</a>
+    <a href="#entorno">Entorno</a>
+    <a href="#arquitectura">Arquitectura</a>
+    <a href="#stack">Stack</a>
+    <a href="#dominio">Dominio</a>
+    <a href="#trazabilidad">Trazabilidad</a>
+    <a href="#offline">Offline</a>
+    <a href="#asignacion">Asignación</a>
+    <a href="#integraciones">Integraciones</a>
+    <a href="#frio">Cadena de frío</a>
+    <a href="#seguridad">Seguridad</a>
+    <a href="#normativa">Normativa</a>
+    <a href="#disponibilidad">Disponibilidad</a>
+    <a href="#slo">SLO</a>
+    <a href="#cronograma">Cronograma</a>
+    <a href="#riesgos">Riesgos</a>
+  </div>
+</nav>
+
+<section id="resumen">
+  <span class="sec-label">Resumen</span>
+  <h2>Qué es LTP y qué problema resuelve</h2>
+  <p>LTP es el sistema operativo de la mensajería: el lugar donde nace cada orden, se asigna a un mensajero, se recolecta, se transporta y se prueba su entrega. Reemplaza la coordinación por teléfono, WhatsApp y hojas de cálculo con un flujo único, auditable y verificable paquete por paquete.</p>
+  <p>El diferenciador frente a una mensajería genérica es el <strong>tipo de carga</strong>. Una caja de medicamentos no es un sobre: puede requerir 2–8&nbsp;°C sin interrupción, puede ser de control especial y exigir cadena de custodia documentada, y su entrega tardía tiene consecuencias clínicas. Por eso el diseño gira alrededor de tres invariantes:</p>
+  <ul>
+    <li><strong>Ningún cambio de estado sin evidencia.</strong> Cada transición del paquete registra quién, cuándo, dónde y con qué prueba (escaneo, foto, firma, documento).</li>
+    <li><strong>El registro no se puede alterar.</strong> El historial es de solo anexado y verificable criptográficamente; corregir un error genera un evento nuevo, nunca borra el anterior.</li>
+    <li><strong>La operación no se detiene sin señal.</strong> La app del mensajero funciona completa sin internet y sincroniza al recuperar cobertura. Un sótano de hospital no puede romper la trazabilidad.</li>
+  </ul>
+
+  <h3>Decisiones ya fijadas</h3>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Decisión</th><th>Valor</th><th>Implicación principal</th></tr></thead>
+      <tbody>
+        <tr><td>Entorno de despliegue</td><td>On-premise / servidor propio</td><td>Alta disponibilidad, respaldo y recuperación quedan bajo responsabilidad interna. Ver <a href="#entorno">Entorno</a>.</td></tr>
+        <tr><td>Backend</td><td>PHP 8.3 + Laravel 11</td><td>Aprovecha el conocimiento del equipo y el entorno LAMP existente.</td></tr>
+        <tr><td>Interfaz</td><td>Vue 3 + Vite</td><td>Una sola aplicación responsive para las tres audiencias. Encaja con el ecosistema Laravel y reduce el salto entre backend y frontend.</td></tr>
+        <tr><td>Aplicación de campo</td><td>PWA instalable, sin app nativa</td><td>Elimina dos publicaciones en tiendas y su ciclo de aprobación. Ver <a href="#offline">Offline</a> para el límite que impone iOS.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <span class="tag">Alcance de este documento</span>
+    <p>Define arquitectura, stack, modelo de dominio, controles de seguridad y cronograma. No incluye contratos de proveedor, dimensionamiento definitivo de hardware ni la validación jurídica del marco normativo: esos tres puntos requieren insumos que aún no están en el proyecto.</p>
+  </div>
+</section>
+
+<section id="entorno">
+  <span class="sec-label">Entorno</span>
+  <h2>On-premise: lo que gana y lo que cuesta</h2>
+  <p>Alojar LTP en servidor propio es una decisión válida y frecuente en el sector salud —control físico del dato clínico, costo variable nulo, independencia de proveedor—, pero traslada al equipo interno responsabilidades que una nube gestionada absorbe. Conviene que esas responsabilidades queden explícitas antes de construir, no después del primer incidente.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Dimensión</th><th>On-premise</th><th>Consecuencia para LTP</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Costo</td>
+          <td>CAPEX alto al inicio, OPEX bajo y predecible</td>
+          <td>Favorable a mediano plazo. Presupuestar renovación de hardware a 4–5 años y repuestos críticos (discos, fuente).</td>
+        </tr>
+        <tr>
+          <td>Escalabilidad</td>
+          <td>Vertical, con techo físico</td>
+          <td>Los picos (cierre de mes, campañas de vacunación, contingencias sanitarias) exigen sobreaprovisionar. Dimensionar al pico esperado ×2, no al promedio.</td>
+        </tr>
+        <tr>
+          <td>Disponibilidad</td>
+          <td>Sin SLA de tercero; depende de energía, red y hardware locales</td>
+          <td><span class="pill p-crit">Riesgo principal</span> Un servidor único es punto único de falla. Mitigación mínima: UPS + planta, dos enlaces de internet de operadores distintos, réplica de PostgreSQL en caliente.</td>
+        </tr>
+        <tr>
+          <td>Mantenimiento</td>
+          <td>Parches de SO, base de datos y seguridad a cargo del equipo</td>
+          <td>Reservar ~15&nbsp;% de la capacidad de un ingeniero para operación continua. No es trabajo de proyecto, es trabajo permanente.</td>
+        </tr>
+        <tr>
+          <td>Recuperación ante desastre</td>
+          <td>No existe salvo que se construya</td>
+          <td>Obligatorio: copia cifrada fuera de sede y prueba de restauración trimestral documentada.</td>
+        </tr>
+        <tr>
+          <td>Dependencia de internet</td>
+          <td>Persiste</td>
+          <td>Mapas, notificaciones y la app móvil siguen requiriendo salida a internet. On-premise no elimina esa dependencia, solo la del alojamiento.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout is-warn">
+    <span class="tag">Recomendación</span>
+    <p><strong>Modelo híbrido con núcleo local.</strong> Mantener aplicación y base de datos en el servidor propio, y usar almacenamiento externo cifrado únicamente para dos cosas: copias de seguridad fuera de sede y una réplica de solo lectura para continuidad. Es el 90&nbsp;% del beneficio de la nube en resiliencia, con un costo mensual bajo y sin ceder el control del dato operativo.</p>
+    <p>Si la decisión final es 100&nbsp;% local sin respaldo externo, dejarlo documentado como riesgo aceptado por la dirección, con firma del responsable.</p>
+  </div>
+
+  <h3>Dimensionamiento inicial sugerido</h3>
+  <p>Cifra de referencia para una operación de hasta ~2.000 órdenes/día y 80 mensajeros concurrentes. <em>Es una estimación, no un cálculo sobre datos reales de la operación</em>; debe ajustarse tras la fase de descubrimiento.</p>
+  <ul>
+    <li><strong>Nodo de aplicación:</strong> 8 vCPU, 16&nbsp;GB RAM, SSD NVMe 500&nbsp;GB.</li>
+    <li><strong>Nodo de base de datos:</strong> 8 vCPU, 32&nbsp;GB RAM, SSD NVMe 1&nbsp;TB en RAID&nbsp;10 (las evidencias fotográficas dominan el crecimiento: estimar 300–600&nbsp;KB por entrega).</li>
+    <li><strong>Nodo secundario:</strong> réplica de PostgreSQL en streaming + destino de respaldo local.</li>
+    <li><strong>Red:</strong> dos enlaces con failover automático, IP fija, firewall perimetral.</li>
+  </ul>
+</section>
+
+<section id="arquitectura">
+  <span class="sec-label">Arquitectura</span>
+  <h2>Vista de componentes</h2>
+  <p>Monolito modular en el backend, con un único servicio separado. Es deliberado: un equipo pequeño construyendo un dominio nuevo pierde más en la coordinación entre microservicios de lo que gana en independencia. Los módulos se separan por límites de dominio dentro del mismo despliegue, de modo que extraer uno más adelante sea un movimiento mecánico y no una reescritura.</p>
+
+  <div class="stackdiag wide">
+    <div class="tier">
+      <div class="tier-name">Clientes</div>
+      <div class="tier-boxes">
+        <div class="box acc">Aplicación de campo<small>PWA · offline-first</small></div>
+        <div class="box">Portal Cliente<small>Vue 3 · responsive</small></div>
+        <div class="box">Panel Operaciones<small>Vue 3 · monitoreo</small></div>
+      </div>
+    </div>
+    <div class="flowarrow">↓ &nbsp; HTTPS / WSS &nbsp; ↓</div>
+    <div class="tier">
+      <div class="tier-name">Borde</div>
+      <div class="tier-boxes">
+        <div class="box">Nginx<small>TLS 1.3 · proxy inverso</small></div>
+        <div class="box">Límite de tasa<small>por IP y por token</small></div>
+        <div class="box">WAF<small>ModSecurity + CRS</small></div>
+      </div>
+    </div>
+    <div class="flowarrow">↓</div>
+    <div class="tier">
+      <div class="tier-name">Aplicación</div>
+      <div class="tier-boxes">
+        <div class="box acc">API Laravel 11<small>REST + OpenAPI</small></div>
+        <div class="box acc">Reverb<small>WebSocket · tracking vivo</small></div>
+        <div class="box">Horizon<small>colas y trabajos diferidos</small></div>
+        <div class="box cold">Optimizador de rutas<small>Python · OR-Tools · fase 3</small></div>
+      </div>
+    </div>
+    <div class="flowarrow">↓</div>
+    <div class="tier">
+      <div class="tier-name">Módulos</div>
+      <div class="tier-boxes">
+        <div class="box">Órdenes</div>
+        <div class="box">Despacho</div>
+        <div class="box">Flota</div>
+        <div class="box">Trazabilidad</div>
+        <div class="box">Tarifas</div>
+        <div class="box">Facturación</div>
+        <div class="box">Identidad y accesos</div>
+        <div class="box cold">Cadena de frío</div>
+      </div>
+    </div>
+    <div class="flowarrow">↓</div>
+    <div class="tier">
+      <div class="tier-name">Datos</div>
+      <div class="tier-boxes">
+        <div class="box acc">PostgreSQL 16<small>+ PostGIS · réplica</small></div>
+        <div class="box">Redis 7<small>caché · colas · presencia</small></div>
+        <div class="box">MinIO<small>evidencias · S3 local</small></div>
+      </div>
+    </div>
+    <div class="flowarrow">↕</div>
+    <div class="tier">
+      <div class="tier-name">Externos</div>
+      <div class="tier-boxes">
+        <div class="box">Google Maps Platform<small>rutas · geocoding</small></div>
+        <div class="box">Facturación electrónica<small>proveedor autorizado DIAN</small></div>
+        <div class="box">SMS / WhatsApp Business<small>notificaciones</small></div>
+        <div class="box">SMTP corporativo</div>
+      </div>
+    </div>
+    <div class="tier">
+      <div class="tier-name">Transversal</div>
+      <div class="tier-boxes">
+        <div class="box">Prometheus + Grafana<small>métricas y alertas</small></div>
+        <div class="box">Loki<small>bitácoras centralizadas</small></div>
+        <div class="box">Respaldo 3-2-1<small>cifrado · fuera de sede</small></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Recorrido de una orden</h3>
+  <p>El camino feliz, extremo a extremo, para entender cómo colaboran los componentes:</p>
+  <ol>
+    <li>El cliente crea la orden en el portal indicando tipo de medicamento, dimensiones, peso, criticidad y ventana de entrega. La API valida contra las reglas de la sede destino y devuelve el número de guía.</li>
+    <li>El módulo de despacho calcula candidatos —vehículo compatible, capacidad, cercanía, carga actual, ventana— y propone un mensajero. El operador confirma o reasigna.</li>
+    <li>La app del mensajero recibe la tarea por WebSocket; si está sin señal, la recibe al reconectar. El mensajero escanea el código del paquete en origen: sin escaneo válido no existe recolección.</li>
+    <li>Durante el trayecto la app emite posición cada 20–30 segundos hacia Reverb; el panel de operaciones y el cliente ven el mismo punto en el mapa. Un desvío o una demora frente a la ventana levanta una alerta.</li>
+    <li>En destino, la app exige la prueba de entrega: escaneo, foto del receptor, firma, documento de identidad y coordenada validada contra la dirección. Solo entonces el estado pasa a entregada.</li>
+    <li>El sistema genera acta de entrega en PDF, notifica al cliente y libera la orden hacia facturación.</li>
+  </ol>
+</section>
+
+<section id="stack">
+  <span class="sec-label">Stack</span>
+  <h2>Tecnologías y por qué cada una</h2>
+  <p>Cada elección se justifica y se declara su costo. Donde hay una alternativa razonable, queda anotada.</p>
+
+  <div class="scroller wide">
+    <table>
+      <thead><tr><th>Pieza</th><th>Elección</th><th>Razón</th><th>Contrapartida</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Backend</td><td>PHP 8.3 · Laravel 11</td>
+          <td>Decisión del equipo. Ecosistema maduro para el dominio: colas, eventos, políticas de autorización, generación de PDF y programación de tareas vienen de fábrica.</td>
+          <td>Concurrencia por proceso, no por hilo: cada worker ocupa memoria. Se compensa con Horizon y dimensionamiento de colas.</td>
+        </tr>
+        <tr>
+          <td>Base de datos</td><td>PostgreSQL 16 + PostGIS</td>
+          <td>Geometría nativa e índices espaciales para zonas de cobertura y cercanía; restricciones de exclusión para ventanas de tiempo; particionado nativo para la tabla de eventos.</td>
+          <td>Requiere DBA con criterio (<code>autovacuum</code>, planes de consulta). MySQL sería más familiar pero su soporte geoespacial es notoriamente inferior.</td>
+        </tr>
+        <tr>
+          <td>Caché y colas</td><td>Redis 7</td>
+          <td>Respalda Horizon, presencia de mensajeros en línea, límite de tasa y difusión de posiciones.</td>
+          <td>Estado en memoria: configurar persistencia AOF y no usarlo como fuente de verdad de nada.</td>
+        </tr>
+        <tr>
+          <td>Tiempo real</td><td>Laravel Reverb</td>
+          <td>Servidor WebSocket propio de Laravel, autoalojable, sin costo por conexión y sin enviar posiciones de mensajeros a un tercero.</td>
+          <td>Un proceso más que operar y monitorear. Alternativa gestionada: Pusher, a costo por mensaje y con el dato saliendo de la sede.</td>
+        </tr>
+        <tr>
+          <td>Interfaz</td><td>Vue 3 · Vite · Pinia</td>
+          <td>Una sola aplicación responsive para cliente, operación y campo: cambia la densidad y el tamaño de los objetivos táctiles, no el código. Vue es además el frontend que Laravel mejor acompaña, lo que reduce el salto de contexto del equipo.</td>
+          <td>Una interfaz que sirve a tres audiencias exige disciplina para no volverse un compromiso mediocre entre las tres. Se mitiga con rutas y densidades separadas, no con condicionales repartidos.</td>
+        </tr>
+        <tr>
+          <td>Mapas</td><td>MapLibre GL + teselas de proveedor</td>
+          <td>Librería libre, sin costo por carga de mapa. El gasto queda acotado a rutas y geocoding, que sí requieren un proveedor.</td>
+          <td>Google Maps JS es más completo pero cobra por carga; con un panel de monitoreo abierto ocho horas al día, esa diferencia es significativa.</td>
+        </tr>
+        <tr>
+          <td>Rutas y geocoding</td><td>Google Routes API</td>
+          <td>Mejor calidad de tráfico y direcciones en ciudades colombianas, que es donde se juega el cumplimiento de ventanas.</td>
+          <td>Costo variable por solicitud. Mitigación: caché de geocoding por dirección normalizada y recálculo de ruta solo ante desvío real.</td>
+        </tr>
+        <tr>
+          <td>Campo</td><td>PWA · Service Worker · IndexedDB</td>
+          <td>Se instala desde el navegador, se actualiza sin pasar por una tienda y funciona sin señal. Cámara, geolocalización y lectura de códigos se resuelven con API del navegador.</td>
+          <td><span class="pill p-warn">Límite real</span> En iOS una PWA no emite posición con la pantalla apagada: el seguimiento en vivo funciona con la aplicación abierta. Los eventos de recolección y entrega —los que exige la auditoría— sí quedan completos.</td>
+        </tr>
+        <tr>
+          <td>Archivos</td><td>MinIO</td>
+          <td>Compatible con S3, autoalojado. Permite migrar a almacenamiento externo cambiando credenciales, sin tocar código.</td>
+          <td>Un servicio más. Alternativa simple: disco local, a cambio de perder la ruta de migración.</td>
+        </tr>
+        <tr>
+          <td>Optimización</td><td>Python · OR-Tools <span class="pill p-cold">Fase 3</span></td>
+          <td>El problema de ruteo con ventanas de tiempo no tiene solución competitiva en PHP. Servicio aislado con contrato HTTP claro.</td>
+          <td>Segundo lenguaje en producción. Aislado y opcional: si el servicio cae, el despacho vuelve al modo por reglas.</td>
+        </tr>
+        <tr>
+          <td>Empaquetado</td><td>Docker Compose → k3s</td>
+          <td>Compose es suficiente para un nodo y lo entiende cualquiera del equipo. La migración a k3s se evalúa solo cuando aparezca el segundo nodo.</td>
+          <td>Compose no da alta disponibilidad. Es una decisión de fase, no definitiva.</td>
+        </tr>
+        <tr>
+          <td>Observabilidad</td><td>Prometheus · Grafana · Loki</td>
+          <td>Autoalojado, sin costo por volumen. En on-premise, saber que el disco se llenó antes de que se llene no es opcional.</td>
+          <td>Consume recursos del mismo servidor. Reservar ~2&nbsp;GB de RAM.</td>
+        </tr>
+        <tr>
+          <td>Errores</td><td>GlitchTip</td>
+          <td>Compatible con el SDK de Sentry, mucho más liviano de operar en un servidor propio.</td>
+          <td>Menos funciones que Sentry comercial. Suficiente para captura y agrupación de errores.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="dominio">
+  <span class="sec-label">Dominio</span>
+  <h2>Modelo de datos y ciclo de vida</h2>
+  <p>La distinción que sostiene todo el modelo: una <strong>orden</strong> es el acuerdo comercial con el cliente; un <strong>paquete</strong> es el objeto físico que se mueve y se rastrea. Una orden puede contener varios paquetes, y cada paquete tiene su propio estado, su propia evidencia y su propia trazabilidad. Confundirlos es el error de diseño más caro en este dominio, porque impide entregas parciales y rompe la auditoría.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Entidad</th><th>Contenido esencial</th></tr></thead>
+      <tbody>
+        <tr><td><code>clientes</code></td><td>Razón social, NIT, condiciones comerciales, contactos de notificación.</td></tr>
+        <tr><td><code>sedes</code></td><td>Hospital, clínica, farmacia o bodega. Dirección normalizada, coordenada, ventanas de recepción, requisitos de acceso (muelle, portería, piso).</td></tr>
+        <tr><td><code>ordenes</code></td><td>Cliente, origen, destino, criticidad, ventana comprometida, tarifa aplicada, estado comercial.</td></tr>
+        <tr><td><code>paquetes</code></td><td>Código único, tipo (<span class="pill p-cold">cadena de frío</span> <span class="pill p-crit">controlado</span> <span class="pill p-accent">general</span>), dimensiones, peso, rango térmico exigido, estado logístico.</td></tr>
+        <tr><td><code>eventos_paquete</code></td><td>Bitácora de solo anexado: estado, actor, marca de tiempo del dispositivo y del servidor, coordenada, evidencia asociada, hash encadenado.</td></tr>
+        <tr><td><code>mensajeros</code></td><td>Persona, vehículo asignado, certificaciones vigentes, zonas habilitadas, disponibilidad.</td></tr>
+        <tr><td><code>vehiculos</code></td><td>Tipo (moto, automóvil, camioneta refrigerada), capacidad en volumen y peso, refrigeración sí/no, mantenimiento y documentos al día.</td></tr>
+        <tr><td><code>asignaciones</code></td><td>Paquete ↔ mensajero, momento, origen de la decisión (automática o manual) y motivo si fue manual.</td></tr>
+        <tr><td><code>evidencias</code></td><td>Firma, fotografías, documento de identidad del receptor, coordenada, checksum del archivo.</td></tr>
+        <tr><td><code>lecturas_temperatura</code></td><td>Paquete, valor, momento, fuente (manual o sensor), indicador de fuera de rango.</td></tr>
+        <tr><td><code>zonas</code></td><td>Polígono PostGIS, tarifa base, recargos por criticidad y horario.</td></tr>
+        <tr><td><code>auditoria</code></td><td>Toda operación sobre datos sensibles: quién, qué, cuándo, desde dónde, valor anterior y nuevo.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Máquina de estados del paquete</h3>
+  <p>Las transiciones son monotónicas: un paquete nunca retrocede de estado. Una corrección se modela como novedad y reprogramación, con evento propio. Esta regla es la que permite resolver conflictos de sincronización sin ambigüedad.</p>
+  <div class="states">
+    <span class="state">CREADO</span><span class="arrow">→</span>
+    <span class="state">ASIGNADO</span><span class="arrow">→</span>
+    <span class="state">EN_RUTA_RECOLECCION</span><span class="arrow">→</span>
+    <span class="state">RECOLECTADO</span><span class="arrow">→</span>
+    <span class="state">EN_TRANSITO</span><span class="arrow">→</span>
+    <span class="state">EN_SITIO</span><span class="arrow">→</span>
+    <span class="state term">ENTREGADO</span>
+  </div>
+  <div class="states">
+    <span class="arrow">desde cualquier estado activo →</span>
+    <span class="state exc">NOVEDAD</span><span class="arrow">→</span>
+    <span class="state">REPROGRAMADO</span>
+    <span class="arrow">o</span>
+    <span class="state term">DEVUELTO</span>
+    <span class="arrow">o</span>
+    <span class="state exc">SINIESTRO</span>
+  </div>
+  <p>Las novedades se tipifican desde el inicio —receptor ausente, dirección errada, rechazo por parte del receptor, ruptura de cadena de frío, daño del empaque, restricción de acceso a la sede— porque son el insumo directo de los indicadores de calidad del servicio y de la conversación comercial con el cliente.</p>
+</section>
+
+<section id="trazabilidad">
+  <span class="sec-label">Trazabilidad</span>
+  <h2>Registro de auditoría inmutable</h2>
+  <p>«Inmutable» en una base de datos relacional no es una propiedad mágica: se construye con tres capas que se refuerzan. Vale la pena ser preciso, porque es el control del que depende la defensa ante una auditoría o una reclamación.</p>
+
+  <h4>Capa 1 — Solo anexado</h4>
+  <p>La tabla <code>eventos_paquete</code> no admite <code>UPDATE</code> ni <code>DELETE</code>. Se aplica en la base de datos, no en la aplicación: el rol que usa Laravel recibe únicamente <code>INSERT</code> y <code>SELECT</code>, y un disparador rechaza cualquier otra operación. Un error en el código de aplicación no puede reescribir historia.</p>
+
+  <h4>Capa 2 — Encadenamiento criptográfico</h4>
+  <p>Cada evento almacena <code>hash = SHA-256(hash_anterior + carga_canónica)</code>, donde la carga canónica es la serialización determinista de los campos del evento. Alterar un registro invalida todos los posteriores, y la manipulación se vuelve detectable sin comparar contra un respaldo. Un trabajo programado verifica la cadena completa cada noche y alerta ante la primera discrepancia.</p>
+
+  <h4>Capa 3 — Sellado externo diario</h4>
+  <p>Al cierre de cada día se calcula el hash raíz de la jornada, se firma con una clave que la aplicación no puede leer y se exporta a almacenamiento externo de solo escritura. Esto responde a la pregunta que un auditor sí hace: «¿y si alguien con acceso de administrador reescribió la cadena entera?». Con el sello diario fuera del alcance del servidor, no puede.</p>
+
+  <div class="callout">
+    <span class="tag">Consulta y desempeño</span>
+    <p>La tabla de eventos crece de forma indefinida y es la más consultada del sistema. Se particiona por mes, se indexa por paquete y por fecha, y las particiones con más de doce meses pasan a almacenamiento frío, consultables pero fuera del camino caliente. Con 2.000 órdenes diarias y ~9 eventos por paquete, son cerca de 6,5 millones de registros al año.</p>
+  </div>
+</section>
+
+<section id="offline">
+  <span class="sec-label">Offline</span>
+  <h2>Trabajo sin señal y sincronización</h2>
+  <p>Los sótanos de hospital, los depósitos de farmacia y buena parte de la geografía rural no tienen cobertura. La app del mensajero se diseña para operar sin red de forma indefinida, con la red como una conveniencia y no como un requisito.</p>
+
+  <h4>Escritura local primero</h4>
+  <p>Toda acción del mensajero se escribe en IndexedDB y la interfaz responde de inmediato. La sincronización ocurre después, en segundo plano. El mensajero nunca espera a la red para completar una entrega.</p>
+
+  <div class="callout is-warn">
+    <span class="tag">Lo que la PWA no puede hacer</span>
+    <p>En iOS, una aplicación web no emite posición con la pantalla apagada ni en segundo plano. El seguimiento en vivo funciona mientras la aplicación está abierta, que es la mayor parte de la jornada, pero no es equivalente a una app nativa. Lo que <em>sí</em> queda completo son los eventos de recolección y entrega con su evidencia, que son los que sostienen la trazabilidad ante una auditoría. Si más adelante el seguimiento continuo se vuelve un requisito contractual, la salida es una app nativa delgada que solo emita posición, no reconstruir toda la aplicación.</p>
+  </div>
+
+  <h4>Identificadores generados en el dispositivo</h4>
+  <p>Eventos y evidencias usan UUID v7 creados localmente. Son únicos y ordenables por tiempo, así que no hace falta consultar al servidor para obtener un identificador, y no hay colisiones al sincronizar varios dispositivos.</p>
+
+  <h4>Bandeja de salida con reintento</h4>
+  <p>Los cambios pendientes se acumulan en una cola local persistente y se envían con reintento exponencial y límite. Cada envío lleva una clave de idempotencia: si la respuesta se pierde pero el servidor sí procesó, el reintento no duplica el evento.</p>
+
+  <h4>Resolución de conflictos</h4>
+  <p>La máquina de estados monotónica hace la mayor parte del trabajo: si el servidor ya tiene un estado más avanzado, el evento tardío se registra como histórico pero no retrocede el estado actual. Para los pocos casos genuinamente ambiguos —dos dispositivos actuando sobre el mismo paquete— gana el evento con marca de tiempo de servidor más temprana y se genera una alerta para revisión del operador. Nada se descarta en silencio.</p>
+
+  <h4>Evidencias multimedia</h4>
+  <p>Las fotos se comprimen en el dispositivo a un máximo de 1600&nbsp;px por lado y ~70&nbsp;% de calidad —suficiente para identificar receptor y empaque, unas diez veces más livianas que el original— y se suben en cola aparte, con prioridad menor que los eventos de estado. El estado del paquete no espera a que suba la foto.</p>
+
+  <div class="callout is-warn">
+    <span class="tag">Punto crítico de diseño</span>
+    <p>La marca de tiempo del dispositivo no es confiable: el reloj del teléfono se puede cambiar. Cada evento guarda <em>ambas</em> marcas —la del dispositivo y la del servidor al recibirlo— junto con el desfase entre ellas. Un desfase anómalo levanta alerta. Para efectos legales y de auditoría, la marca válida es la del servidor.</p>
+  </div>
+</section>
+
+<section id="asignacion">
+  <span class="sec-label">Asignación</span>
+  <h2>Despacho automatizado</h2>
+  <p>La asignación evoluciona en tres niveles. Intentar el nivel tres desde el principio es la causa más común de que un proyecto logístico no llegue a producción: sin datos históricos reales, un optimizador se afina a ciegas.</p>
+
+  <h3>Nivel 1 — Filtro duro <span class="pill p-accent">MVP</span></h3>
+  <p>Descarta a quien simplemente no puede hacer el servicio. No es negociable ni ponderable:</p>
+  <ul>
+    <li>Vehículo con refrigeración si el paquete exige cadena de frío.</li>
+    <li>Capacidad de volumen y peso disponible en la carga actual.</li>
+    <li>Certificación vigente para medicamentos de control especial.</li>
+    <li>Zona habilitada y turno activo.</li>
+  </ul>
+
+  <h3>Nivel 2 — Puntaje ponderado <span class="pill p-accent">MVP</span></h3>
+  <p>Entre los candidatos viables, ordena por puntaje. Los pesos son configurables desde el panel, sin desplegar código, porque la operación los va a ajustar en las primeras semanas:</p>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Factor</th><th>Peso inicial</th><th>Cálculo</th></tr></thead>
+      <tbody>
+        <tr><td>Cercanía al origen</td><td class="num">35 %</td><td>Distancia PostGIS sobre la última posición conocida</td></tr>
+        <tr><td>Holgura frente a la ventana</td><td class="num">25 %</td><td>Tiempo estimado de llegada contra hora comprometida</td></tr>
+        <tr><td>Carga actual</td><td class="num">20 %</td><td>Paquetes activos contra capacidad, para repartir trabajo</td></tr>
+        <tr><td>Compatibilidad de ruta</td><td class="num">15 %</td><td>Desvío que agrega el nuevo servicio a la ruta en curso</td></tr>
+        <tr><td>Desempeño histórico</td><td class="num">5 %</td><td>Cumplimiento y tasa de novedades del mensajero</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>El operador siempre puede reasignar. Toda anulación manual queda registrada con su motivo, y esos motivos son la materia prima para calibrar los pesos.</p>
+
+  <h3>Nivel 3 — Optimización global <span class="pill p-cold">Fase 3</span></h3>
+  <p>Con tres a seis meses de datos reales, el servicio de OR-Tools resuelve el problema de ruteo con ventanas de tiempo para el lote completo del día: no «quién toma este servicio», sino «cuál es el mejor conjunto de rutas para los 400 servicios de hoy». El salto de eficiencia es real pero solo se puede medir contra la línea base que produce el nivel 2. Sin esa línea base, no hay forma de saber si el optimizador mejora algo.</p>
+
+  <h3>Monitoreo y alertas</h3>
+  <p>La consola de flota levanta alerta ante desvío de la ruta prevista por encima del umbral configurado, detención prolongada fuera de un punto de servicio, riesgo de incumplimiento de ventana proyectado con el tráfico actual, pérdida de señal del dispositivo por más del umbral, y batería del teléfono por debajo del 15&nbsp;%. Esta última parece menor y no lo es: un teléfono apagado significa un paquete sin trazabilidad.</p>
+</section>
+
+<section id="integraciones">
+  <span class="sec-label">Integraciones</span>
+  <h2>Lo que el cliente ve sin entrar al portal</h2>
+  <p>La mayoría de las llamadas a una mesa de servicio logística son la misma pregunta: «¿dónde va mi envío y quién lo recibió?». Cada camino que se abre para responderla sin que alguien tenga que preguntar es una llamada menos y un cliente más tranquilo. LTP abre cuatro, en orden de esfuerzo creciente para el cliente.</p>
+
+  <h3>La llave es suya, no nuestra</h3>
+  <p>Este es el punto que decide si la integración se usa o se abandona. En el momento de radicar, el hospital <strong>no conoce la guía LTP</strong>: conoce su número de radicado, su orden de compra o su remisión. Esa es la llave que vive en su sistema y la que tiene a mano cuando alguien de su equipo pregunta. Obligarlo a traducir entre su número y el nuestro es trasladarle un problema que es nuestro.</p>
+  <p>Por eso una orden admite varias referencias del cliente, con el nombre que el cliente les da —si dice «radicado», el sistema dice «radicado»—, y <strong>cualquiera de ellas recupera el envío completo con su soporte de entrega</strong>. La guía LTP sigue siendo la llave unívoca de la recolección y el envío; simplemente no es la única puerta.</p>
+  <p>Las referencias se guardan tal como el cliente las escribió, para reproducirlas igual en el acta, y además normalizadas: «OC-1234», «oc 1234» y «OC1234» encuentran el mismo envío. Sin esa normalización la consulta falla justo cuando más se necesita, que es cuando alguien copia el número de un correo.</p>
+
+  <div class="scroller wide">
+    <table>
+      <thead><tr><th>Camino</th><th>Esfuerzo para el cliente</th><th>Qué resuelve</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Enlace público de rastreo</td>
+          <td>Ninguno</td>
+          <td>Un URL con vencimiento y revocable que se reenvía por correo o WhatsApp. Sin credenciales, sin instalar nada, sin el documento completo del receptor. Es el camino para el usuario final que solo quiere saber si llegó.</td>
+        </tr>
+        <tr>
+          <td>Portal de consulta</td>
+          <td>Iniciar sesión</td>
+          <td>Una caja de búsqueda que acepta guía, referencia o código de etiqueta y decide sola cuál es. Devuelve el soporte completo y permite exportar en CSV.</td>
+        </tr>
+        <tr>
+          <td>API de consulta</td>
+          <td>Integración una vez</td>
+          <td>Consulta individual y <strong>en lote</strong>. Un hospital con 180 radicados en el mes manda su lista completa y recibe el estado de todos, incluidas <em>las referencias que no encontramos</em>, que suelen ser las que le interesan.</td>
+        </tr>
+        <tr>
+          <td>Webhooks</td>
+          <td>Integración una vez</td>
+          <td>LTP avisa al sistema del cliente en cada cambio de estado, con firma HMAC y reintento exponencial. Es la integración que más reduce llamadas: el cliente deja de preguntar porque ya se enteró.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>El soporte de entrega</h3>
+  <p>Es el documento que el cliente necesita para cerrar <em>su</em> proceso interno, y por eso se arma completo o no se arma: un soporte con campos faltantes no le sirve a nadie. Incluye fecha y hora exactas, quién recibió con documento y cargo, el mensajero y el vehículo, la coordenada de la entrega con su distancia a la sede, las evidencias con su checksum, el perfil térmico si aplica y la trazabilidad evento por evento.</p>
+  <p>Y lleva algo que un reporte corriente no tiene: <strong>la verificación criptográfica del tramo de cadena</strong>. Cualquiera puede recalcular los hashes encadenados y comprobar que ningún evento se modificó después de registrado. Eso es lo que convierte el soporte en prueba y no en una afirmación nuestra.</p>
+
+  <div class="callout">
+    <span class="tag">Detalle que decide la adopción</span>
+    <p>La exportación CSV abre con la referencia del cliente y la guía LTP, en ese orden, porque son las llaves con las que va a cruzar contra su propio sistema. Y lleva marca de orden de bytes UTF-8: sin ella, Excel en Windows destroza las tildes, y el primer reporte que abre el cliente es el que define si confía en los datos.</p>
+  </div>
+
+  <h3>Radicación masiva</h3>
+  <p>Los clientes que despachan por lote —campañas, entregas domiciliarias, distribución a red— cargan un archivo o llaman a la API en lote. El procesamiento es asíncrono y con reporte fila por fila, porque en un lote de 200 envíos siempre hay tres con la sede mal escrita, y devolver «el archivo falló» obliga a buscarlas a mano.</p>
+
+  <h3>Toda exportación deja rastro</h3>
+  <p>Descargar un lote con nombres y documentos de receptores es un acceso a datos personales sensibles. Cada exportación registra quién, cuándo, con qué criterio y si incluyó datos del receptor. Es exactamente lo que pregunta una auditoría de protección de datos, y reconstruirlo después no es posible.</p>
+</section>
+
+<section id="frio">
+  <span class="sec-label">Cadena de frío</span>
+  <h2>Control térmico</h2>
+  <p>Para los paquetes que lo exigen, el rango se define por paquete —no una constante global— porque no todo producto refrigerado comparte el mismo rango. El registro térmico es parte de la evidencia de entrega, no un dato accesorio.</p>
+  <ul>
+    <li><strong>MVP:</strong> registro manual obligatorio en dos puntos, recolección y entrega, con fotografía del indicador o del datalogger. Sin lectura registrada, la app no permite cerrar el paso.</li>
+    <li><strong>Fase 3:</strong> integración con dataloggers Bluetooth. Lectura continua, descarga automática del perfil completo al finalizar el servicio y gráfica adjunta al acta de entrega.</li>
+    <li><strong>Excursión térmica:</strong> una lectura fuera de rango dispara alerta inmediata al operador y al cliente, bloquea el cierre normal y obliga a registrar una novedad tipificada. La decisión de continuar o abortar el servicio queda documentada con su responsable.</li>
+  </ul>
+  <div class="callout is-warn">
+    <span class="tag">Requiere validación</span>
+    <p>Los rangos térmicos, los tiempos máximos de excursión permitidos y el procedimiento ante ruptura de cadena de frío deben ser definidos por el área de calidad y el director técnico, no por el equipo de desarrollo. El sistema los implementa como parámetros configurables; no los inventa.</p>
+  </div>
+</section>
+
+<section id="seguridad">
+  <span class="sec-label">Seguridad</span>
+  <h2>Controles de seguridad</h2>
+
+  <h3>Roles y permisos</h3>
+  <p>Cuatro roles base, con permisos granulares por encima para casos particulares. El principio rector es el de menor privilegio: cada rol ve exclusivamente lo que necesita para su función.</p>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Rol</th><th>Alcance</th><th>Restricciones duras</th></tr></thead>
+      <tbody>
+        <tr><td>Administrador</td><td>Configuración, tarifas, usuarios, parámetros</td><td>Doble factor obligatorio. No puede alterar la bitácora de eventos ni eliminar auditoría.</td></tr>
+        <tr><td>Operador</td><td>Despacho, monitoreo, gestión de novedades</td><td>Doble factor obligatorio. Sin acceso a tarifas ni a datos de facturación.</td></tr>
+        <tr><td>Cliente</td><td>Sus propias órdenes y documentos</td><td>Aislamiento estricto por cliente, aplicado en la capa de consulta. Nunca ve datos de otro cliente ni la posición del mensajero fuera de sus servicios activos.</td></tr>
+        <tr><td>Mensajero</td><td>Solo sus tareas del día</td><td>Sin acceso a datos comerciales ni al histórico de otros mensajeros. Sesión ligada al dispositivo registrado.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Datos personales y cifrado</h3>
+  <ul>
+    <li><strong>En tránsito:</strong> TLS 1.3 en todo el perímetro. Fijado de certificado en la app móvil para evitar interceptación con certificados instalados en el dispositivo.</li>
+    <li><strong>En reposo:</strong> cifrado de disco completo en el servidor, más cifrado a nivel de columna para los datos identificables del receptor —documento de identidad, teléfono, nombre completo— con clave gestionada aparte de la base de datos.</li>
+    <li><strong>Evidencias:</strong> almacenadas cifradas, servidas por enlaces firmados de vigencia corta, nunca por URL pública predecible.</li>
+    <li><strong>Bitácoras:</strong> sin datos personales. Los registros técnicos referencian identificadores, no nombres ni documentos.</li>
+    <li><strong>Retención:</strong> política explícita por tipo de dato. Las fotografías de receptores no se conservan indefinidamente sin justificación documentada.</li>
+  </ul>
+
+  <h3>Gestión de secretos</h3>
+  <p>Ninguna credencial, clave de API ni token vive en el repositorio, en el código ni en un archivo de configuración versionado. Se inyectan como variables de entorno desde un archivo con permisos restringidos fuera del árbol del proyecto, o desde un gestor de secretos. El repositorio incluye un archivo de ejemplo con nombres de variable y valores vacíos, y un gancho de pre-commit que bloquea el envío si detecta un patrón de credencial. Las claves rotan en calendario y ante cualquier salida de personal con acceso.</p>
+
+  <h3>OWASP Top 10 — controles aplicados</h3>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Riesgo</th><th>Control en LTP</th></tr></thead>
+      <tbody>
+        <tr><td>Control de acceso roto</td><td>Políticas de autorización por recurso, verificadas en el modelo y no en la interfaz. Pruebas automatizadas de acceso cruzado entre clientes en cada despliegue.</td></tr>
+        <tr><td>Fallas criptográficas</td><td>TLS 1.3, cifrado por columna para datos identificables, contraseñas con Argon2id.</td></tr>
+        <tr><td>Inyección</td><td>Consultas parametrizadas mediante el ORM, validación de entrada por esquema en cada punto de la API, escape contextual en el frontend.</td></tr>
+        <tr><td>Diseño inseguro</td><td>Modelado de amenazas por módulo antes de construir. La bitácora de solo anexado es un control de diseño, no un parche posterior.</td></tr>
+        <tr><td>Configuración incorrecta</td><td>Imágenes base mínimas, modo depuración desactivado en producción, cabeceras de seguridad y CSP, revisión de configuración en la lista de verificación de despliegue.</td></tr>
+        <tr><td>Componentes vulnerables</td><td>Análisis de dependencias en integración continua, actualización mensual programada, inventario de componentes.</td></tr>
+        <tr><td>Fallas de identificación</td><td>Doble factor para roles administrativos, rotación de tokens de refresco con detección de reutilización, bloqueo progresivo tras intentos fallidos.</td></tr>
+        <tr><td>Fallas de integridad</td><td>Artefactos de despliegue firmados, verificación de checksum de evidencias, cadena de hash en la bitácora.</td></tr>
+        <tr><td>Fallas de registro y monitoreo</td><td>Bitácoras centralizadas en Loki, alertas en Grafana, auditoría de accesos a datos sensibles con revisión periódica.</td></tr>
+        <tr><td>Falsificación de solicitud del lado del servidor</td><td>Lista blanca de destinos para toda salida hacia servicios externos; sin peticiones a URL provistas por el usuario.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="normativa">
+  <span class="sec-label">Normativa</span>
+  <h2>Marco de cumplimiento</h2>
+  <div class="callout is-crit">
+    <span class="tag">Advertencia</span>
+    <p>Este listado es un punto de partida técnico elaborado desde el diseño del sistema, <strong>no un concepto jurídico</strong>. Debe ser revisado y validado por las áreas <strong>Jurídica</strong>, de <strong>Calidad</strong> y por el <strong>director técnico</strong> antes de tomarlo como base de cumplimiento. La aplicabilidad concreta de cada norma depende del alcance de la habilitación de la empresa y de los contratos con cada cliente, información que no está disponible en este documento.</p>
+  </div>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Referencia</th><th>Materia</th><th>Efecto en el sistema</th></tr></thead>
+      <tbody>
+        <tr><td>Ley 1581 de 2012</td><td>Protección de datos personales</td><td>Los datos de salud son categoría sensible: exigen autorización previa, finalidad declarada, y aviso de privacidad en la captura de firma y fotografía del receptor.</td></tr>
+        <tr><td>Decreto 1074 de 2015</td><td>Reglamentación del régimen de datos</td><td>Registro de bases de datos, procedimiento documentado para atender consultas y reclamos de titulares.</td></tr>
+        <tr><td>Resolución 1403 de 2007</td><td>Modelo de Gestión del Servicio Farmacéutico</td><td>Requisitos de transporte, conservación y trazabilidad de medicamentos. Es la fuente principal de los requisitos de evidencia y cadena de custodia.</td></tr>
+        <tr><td>Decreto 2200 de 2005</td><td>Regulación del servicio farmacéutico</td><td>Condiciones generales de distribución y transporte.</td></tr>
+        <tr><td>Resolución 1478 de 2006</td><td>Medicamentos de control especial</td><td>Cadena de custodia reforzada, registros específicos y controles de acceso diferenciados para esta categoría.</td></tr>
+        <tr><td>Resolución 2003 de 2014</td><td>Habilitación de servicios de salud</td><td>Aplicable según el alcance de habilitación de la empresa. <em>A confirmar con Calidad.</em></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Independientemente de la validación jurídica, hay tres capacidades que el sistema debe incorporar desde el MVP porque agregarlas después cuesta mucho más: consentimiento informado registrado en el momento de capturar datos del receptor, exportación completa de la trazabilidad de un paquete en formato verificable para auditoría, y política de retención aplicada de forma automática por tipo de dato.</p>
+</section>
+
+<section id="disponibilidad">
+  <span class="sec-label">Disponibilidad</span>
+  <h2>Continuidad y respaldo</h2>
+
+  <h3>Estrategia de copias — regla 3-2-1</h3>
+  <ul>
+    <li><strong>Tres copias</strong> de los datos: producción, respaldo local, respaldo fuera de sede.</li>
+    <li><strong>Dos medios</strong> distintos: disco del servidor y almacenamiento externo cifrado.</li>
+    <li><strong>Una fuera de sede</strong>, cifrada antes de salir del servidor. Un incendio o un robo en la oficina no puede llevarse la operación completa.</li>
+  </ul>
+  <p>Copia completa diaria, incremental cada seis horas, y archivado continuo de registros de transacción para recuperación a un punto en el tiempo. <strong>Prueba de restauración completa cada trimestre, documentada.</strong> Una copia que nunca se ha restaurado no es una copia: es una suposición.</p>
+
+  <h3>Objetivos de recuperación</h3>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Escenario</th><th>RTO</th><th>RPO</th><th>Mecanismo</th></tr></thead>
+      <tbody>
+        <tr><td>Falla del proceso de aplicación</td><td class="num">&lt; 2 min</td><td class="num">0</td><td>Reinicio automático del contenedor con verificación de salud</td></tr>
+        <tr><td>Falla del nodo de base de datos</td><td class="num">&lt; 15 min</td><td class="num">&lt; 1 min</td><td>Promoción de la réplica en streaming</td></tr>
+        <tr><td>Falla total del servidor</td><td class="num">&lt; 4 h</td><td class="num">&lt; 6 h</td><td>Restauración sobre hardware de reemplazo o nube</td></tr>
+        <tr><td>Pérdida de sede</td><td class="num">&lt; 24 h</td><td class="num">&lt; 24 h</td><td>Respaldo fuera de sede sobre infraestructura alterna</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Degradación controlada</h3>
+  <p>Cuando algo falla, el sistema pierde funciones en orden de importancia, no todas a la vez. Sin conexión a mapas, la operación sigue con direcciones en texto. Sin WebSocket, el panel cae a consulta periódica cada treinta segundos. Sin el optimizador, el despacho vuelve al modo por reglas. Y con el servidor completamente caído, los mensajeros continúan operando sin red y sincronizan al restablecerse el servicio: <strong>ninguna entrega se pierde por una caída del backend</strong>. Ese es el valor operativo real del diseño offline-first, más allá de la cobertura celular.</p>
+</section>
+
+<section id="slo">
+  <span class="sec-label">SLO</span>
+  <h2>Requisitos no funcionales</h2>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Atributo</th><th>Objetivo</th><th>Cómo se verifica</th></tr></thead>
+      <tbody>
+        <tr><td>Disponibilidad del servicio</td><td class="num">99,5 % mensual</td><td>Sonda externa cada minuto; ~3,6 h de indisponibilidad tolerada al mes</td></tr>
+        <tr><td>Latencia de la API (p95)</td><td class="num">&lt; 400 ms</td><td>Métricas de Prometheus por punto de acceso</td></tr>
+        <tr><td>Retraso del tracking en vivo</td><td class="num">&lt; 5 s</td><td>Desde la emisión del dispositivo hasta el mapa del operador</td></tr>
+        <tr><td>Sincronización tras reconectar</td><td class="num">&lt; 30 s</td><td>Para una jornada completa acumulada sin señal</td></tr>
+        <tr><td>Carga concurrente</td><td class="num">200 mensajeros · 50 operadores</td><td>Pruebas de carga antes de cada despliegue mayor</td></tr>
+        <tr><td>Volumen sostenido</td><td class="num">2.000 órdenes/día</td><td>Con margen de crecimiento de 3× sin cambio de arquitectura</td></tr>
+        <tr><td>Arranque de la app móvil</td><td class="num">&lt; 2 s</td><td>Con datos locales, sin depender de la red</td></tr>
+        <tr><td>Consumo de datos móviles</td><td class="num">&lt; 50 MB/jornada</td><td>Con veinte entregas y evidencia fotográfica completa</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="cronograma">
+  <span class="sec-label">Cronograma</span>
+  <h2>Plan por fases</h2>
+  <p>Las fases sí son una secuencia real: cada una depende de la anterior y produce algo utilizable en operación. La numeración refleja esa dependencia, no un orden arbitrario.</p>
+
+  <div class="phases wide">
+    <div class="phase">
+      <div class="phase-n">0</div>
+      <div>
+        <h3>Descubrimiento y diseño</h3>
+        <p class="phase-meta"><span>3 semanas</span><span>Producto · Arquitectura · Diseño</span></p>
+        <ul>
+          <li>Acompañamiento en campo a mensajeros y operadores para mapear el proceso real, no el documentado.</li>
+          <li>Modelo de datos definitivo y catálogo de novedades tipificadas.</li>
+          <li>Prototipos interactivos de los tres flujos principales, validados con usuarios reales.</li>
+          <li>Definición de rangos térmicos y procedimientos con Calidad y dirección técnica.</li>
+          <li>Dimensionamiento de hardware y compra, considerando tiempos de importación.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-n">1</div>
+      <div>
+        <h3>MVP operativo</h3>
+        <p class="phase-meta"><span>10 semanas</span><span>Meta: reemplazar WhatsApp y Excel</span><span class="pill p-accent">Hito de valor</span></p>
+        <ul>
+          <li>Autenticación, roles y permisos con doble factor administrativo.</li>
+          <li>Creación de órdenes (uso interno) con tipificación de paquete y criticidad.</li>
+          <li>Despacho con filtro duro y puntaje ponderado; anulación manual con motivo.</li>
+          <li>Aplicación de campo (PWA): tareas, escaneo, prueba de entrega completa, modo sin conexión.</li>
+          <li>Consulta por guía LTP y por la referencia que define el cliente, con soporte de entrega y exportación.</li>
+          <li>Bitácora de solo anexado con encadenamiento de hash.</li>
+          <li>Tracking básico —última posición conocida— y tablero de operación.</li>
+          <li>Acta de entrega en PDF y notificación al cliente por correo.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-n">2</div>
+      <div>
+        <h3>Cliente y tiempo real</h3>
+        <p class="phase-meta"><span>8 semanas</span><span>Meta: abrir la plataforma al cliente externo</span></p>
+        <ul>
+          <li>Portal de cliente: creación de órdenes, seguimiento, descarga de guías, facturas y actas.</li>
+          <li>Tracking en vivo por WebSocket, en panel y en portal.</li>
+          <li>Consola de flota con alertas de desvío, demora y pérdida de señal.</li>
+          <li>Gestión de zonas, tarifas dinámicas y ventanas por sede.</li>
+          <li>Registro manual de cadena de frío en recolección y entrega.</li>
+          <li>Notificaciones por SMS y WhatsApp Business.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-n">3</div>
+      <div>
+        <h3>Optimización e integración</h3>
+        <p class="phase-meta"><span>8 semanas</span><span>Meta: eficiencia y ecosistema</span></p>
+        <ul>
+          <li>Servicio de optimización de rutas con OR-Tools, medido contra la línea base de la fase 1.</li>
+          <li>Dataloggers Bluetooth con perfil térmico completo adjunto al acta.</li>
+          <li>Facturación electrónica con proveedor autorizado ante la DIAN.</li>
+          <li>API pública para integración con los sistemas de los clientes.</li>
+          <li>Analítica operativa: cumplimiento, novedades por causa, productividad, rentabilidad por ruta.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-n">4</div>
+      <div>
+        <h3>Endurecimiento y alta disponibilidad</h3>
+        <p class="phase-meta"><span>6 semanas</span><span>Meta: operación sin sobresaltos</span></p>
+        <ul>
+          <li>Réplica de base de datos con conmutación probada.</li>
+          <li>Plan de recuperación documentado y simulacro completo ejecutado.</li>
+          <li>Prueba de intrusión por tercero independiente y remediación de hallazgos.</li>
+          <li>Sellado externo diario de la bitácora de auditoría.</li>
+          <li>Documentación operativa y transferencia de conocimiento al equipo de TIC.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h3>Fuera del alcance del MVP</h3>
+  <p>Declararlo explícitamente evita la discusión a mitad de camino. No entran en la fase 1: portal de cliente, tracking en vivo, tarifas dinámicas, facturación electrónica, optimización global de rutas, integración con dataloggers, ni API pública. El MVP se juzga por una sola pregunta: <em>¿puede la operación completa funcionar un día entero sin WhatsApp ni Excel?</em></p>
+
+  <h3>Equipo sugerido</h3>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Rol</th><th>Dedicación</th><th>Fases</th></tr></thead>
+      <tbody>
+        <tr><td>Líder técnico</td><td class="num">100 %</td><td>0 – 4</td></tr>
+        <tr><td>Desarrollador backend</td><td class="num">2 × 100 %</td><td>1 – 4</td></tr>
+        <tr><td>Desarrollador frontend</td><td class="num">2 × 100 %</td><td>1 – 3</td></tr>
+        <tr><td>QA</td><td class="num">50 % → 100 %</td><td>1 – 4</td></tr>
+        <tr><td>Diseño de producto</td><td class="num">100 % → 30 %</td><td>0 – 2</td></tr>
+        <tr><td>Product owner</td><td class="num">50 %</td><td>0 – 4</td></tr>
+        <tr><td>Infraestructura</td><td class="num">30 %</td><td>0, 4</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Con este equipo, el horizonte es de <strong>31 semanas</strong> hasta la fase 4, con el <strong>MVP en operación real a la semana 12</strong>. Descartar la aplicación nativa recortó cerca de un mes: no hay dos compilaciones que mantener, ni cuentas de desarrollador, ni ciclos de revisión de tienda cada vez que se corrige algo en campo. La estimación asume disponibilidad efectiva del equipo y decisiones de negocio resueltas en menos de 48 horas; ambas suposiciones, en la práctica, son la principal fuente de desviación.</p>
+</section>
+
+<section id="riesgos">
+  <span class="sec-label">Riesgos</span>
+  <h2>Riesgos principales</h2>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Riesgo</th><th>Impacto</th><th>Mitigación</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Rechazo de los mensajeros a la app</td>
+          <td><span class="pill p-crit">Alto</span></td>
+          <td>Es el riesgo número uno de todo proyecto logístico. Involucrar mensajeros desde la fase 0, botones grandes, mínimo de pasos, y piloto con un grupo pequeño antes del despliegue general.</td>
+        </tr>
+        <tr>
+          <td>Servidor único como punto de falla</td>
+          <td><span class="pill p-crit">Alto</span></td>
+          <td>Réplica desde la fase 1, no la 4. Respaldo fuera de sede desde el primer día de producción.</td>
+        </tr>
+        <tr>
+          <td>Calidad de las direcciones de destino</td>
+          <td><span class="pill p-warn">Medio</span></td>
+          <td>Las direcciones de sedes de salud rara vez geocodifican bien. Catálogo curado de sedes con coordenada verificada en campo, en lugar de geocodificar cada vez.</td>
+        </tr>
+        <tr>
+          <td>Costo variable de las API de mapas</td>
+          <td><span class="pill p-warn">Medio</span></td>
+          <td>Caché agresivo de geocoding, recálculo de ruta solo ante desvío real, alertas de consumo y tope de gasto configurado.</td>
+        </tr>
+        <tr>
+          <td>Alcance normativo mal dimensionado</td>
+          <td><span class="pill p-warn">Medio</span></td>
+          <td>Validación con Jurídica y Calidad en la fase 0, antes de congelar el modelo de datos.</td>
+        </tr>
+        <tr>
+          <td>Batería y datos del dispositivo del mensajero</td>
+          <td><span class="pill p-warn">Medio</span></td>
+          <td>Emisión de posición adaptativa según velocidad, compresión de evidencias, y provisión de baterías externas como parte de la dotación.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Próximos pasos</h3>
+  <ol>
+    <li>Validar este documento con TIC, Operaciones y Calidad, y consolidar observaciones.</li>
+    <li>Revisar el marco normativo con el área Jurídica antes de congelar el modelo de datos.</li>
+    <li>Aprobar los prototipos interactivos de los tres flujos principales.</li>
+    <li>Definir hardware y ordenar la compra, contemplando tiempos de entrega.</li>
+    <li>Conformar el equipo e iniciar la fase 0.</li>
+  </ol>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    LTP · Documento de arquitectura v1.0 (borrador) · 21 de agosto de 2026<br>
+    Elaborado para revisión interna. Las cifras de dimensionamiento, volumen y cronograma son estimaciones sujetas a validación con datos reales de la operación.<br>
+    El apartado normativo requiere concepto de las áreas Jurídica y de Calidad antes de su adopción.
+  </div>
+</footer>
+
+</div>

@@ -27,7 +27,7 @@ class Destinatario extends Model
     protected $fillable = [
         'cliente_id', 'tipo', 'nombre', 'tipo_documento', 'documento',
         'telefono', 'email', 'zona_id', 'direccion', 'detalle_acceso',
-        'ciudad', 'latitud', 'longitud', 'coordenada_verificada',
+        'ciudad', 'rural', 'latitud', 'longitud', 'coordenada_verificada',
         'ventanas_atencion', 'origen_dato', 'persistente',
         'autorizacion_en', 'finalidad', 'suprimir_desde', 'activo',
     ];
@@ -44,6 +44,7 @@ class Destinatario extends Model
     {
         return [
             'coordenada_verificada' => 'boolean',
+            'rural'                 => 'boolean',
             'persistente'           => 'boolean',
             'activo'                => 'boolean',
             'ventanas_atencion'     => 'array',

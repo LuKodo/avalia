@@ -25,10 +25,20 @@ enum EstadoPaquete: string
     case Devuelto          = 'devuelto';
     case Siniestro         = 'siniestro';
 
+    /**
+     * Anulado por el cliente antes de que nadie lo tocara.
+     *
+     * Es «cancelado», no «borrado», y la diferencia es todo: una guía radicada
+     * por error se anula dejando constancia de quién la anuló y cuándo. Lo
+     * contrario —que desaparezca— rompería la cadena de la bitácora, que es lo
+     * único que permite afirmarle a un auditor que el historial no se tocó.
+     */
+    case Cancelado         = 'cancelado';
+
     /** Estados desde los que ya no hay movimiento posible. */
     public function esTerminal(): bool
     {
-        return in_array($this, [self::Entregado, self::Devuelto, self::Siniestro], true);
+        return in_array($this, [self::Entregado, self::Devuelto, self::Siniestro, self::Cancelado], true);
     }
 
     /** Estados en los que el paquete está bajo custodia de un mensajero. */
@@ -54,7 +64,7 @@ enum EstadoPaquete: string
         return match ($this) {
             self::Creado, self::Asignado, self::EnRutaRecoleccion, self::Reprogramado => 'recoger',
             self::Recolectado, self::EnTransito, self::EnSitio, self::Novedad => 'entregar',
-            self::Entregado, self::Devuelto, self::Siniestro => null,
+            self::Entregado, self::Devuelto, self::Siniestro, self::Cancelado => null,
         };
     }
 
@@ -64,6 +74,7 @@ enum EstadoPaquete: string
         return match ($this) {
             self::Novedad    => 'Con novedad',
             self::Entregado  => 'Ya entregado.',
+            self::Cancelado  => 'El cliente canceló esta guía.',
             self::Devuelto   => 'Devuelto al origen.',
             self::Siniestro  => 'Declarado siniestro.',
             default          => null,
@@ -85,7 +96,7 @@ enum EstadoPaquete: string
             self::EnSitio           => 5,
             self::Novedad           => 6,
             self::Reprogramado      => 6,
-            self::Entregado, self::Devuelto, self::Siniestro => 9,
+            self::Entregado, self::Devuelto, self::Siniestro, self::Cancelado => 9,
         };
     }
 
@@ -93,7 +104,7 @@ enum EstadoPaquete: string
     public function siguientesPosibles(): array
     {
         return match ($this) {
-            self::Creado            => [self::Asignado, self::Novedad],
+            self::Creado            => [self::Asignado, self::Novedad, self::Cancelado],
             // Desde «asignado» se admite ir directo a «recolectado». La
             // aplicación de campo no obliga al mensajero a marcar «voy en
             // camino»: exigirle un toque de pantalla que no aporta evidencia
@@ -124,7 +135,19 @@ enum EstadoPaquete: string
              */
             self::Novedad           => [self::EnSitio, self::Entregado, self::Reprogramado, self::Devuelto, self::Siniestro],
             self::Reprogramado      => [self::Asignado, self::EnRutaRecoleccion, self::EnTransito],
-            self::Entregado, self::Devuelto, self::Siniestro => [],
+            /*
+             * «Entregado» vuelve a «en sitio» y solo ahí.
+             *
+             * Es la reapertura: se cerró una entrega a la que le faltaba el
+             * acta, o la firma salió en blanco, y hay que completarla. No es
+             * una puerta trasera —la abre operación, exige motivo escrito, la
+             * entrega anterior se conserva marcada como reemplazada y la
+             * reapertura queda en la bitácora como un evento más—. Lo que no
+             * existe es el camino que borra: «entregado» no vuelve a «creado»
+             * ni a «asignado», porque eso sí seria reescribir la historia.
+             */
+            self::Entregado         => [self::EnSitio],
+            self::Devuelto, self::Siniestro, self::Cancelado => [],
         };
     }
 
@@ -147,6 +170,7 @@ enum EstadoPaquete: string
             self::Reprogramado      => 'Reprogramado',
             self::Devuelto          => 'Devuelto',
             self::Siniestro         => 'Siniestro',
+            self::Cancelado         => 'Cancelado',
         };
     }
 
@@ -158,6 +182,10 @@ enum EstadoPaquete: string
             self::Novedad, self::Reprogramado => 'warning',
             self::Devuelto                    => 'serious',
             self::Siniestro                   => 'critical',
+            // Gris, no rojo: una guía cancelada antes de salir no es un
+            // incidente. Pintarla de alarma la pondría a competir por la
+            // atención con lo que sí se torció.
+            self::Cancelado                   => 'neutral',
             default                           => 'neutral',
         };
     }
@@ -206,6 +234,16 @@ enum EstadoPaquete: string
             'cerradas_sin_entrega' => [
                 'etiqueta' => 'Cerradas sin entrega',
                 'estados'  => [self::Devuelto->value, self::Siniestro->value],
+            ],
+            /*
+             * Las canceladas van en su propio grupo y no con «cerradas sin
+             * entrega»: una devolución o un siniestro son fallos del servicio
+             * que hay que mirar; una cancelación del cliente antes de salir no
+             * lo es, y mezclarlas ensuciaría el indicador que de verdad importa.
+             */
+            'canceladas' => [
+                'etiqueta' => 'Canceladas',
+                'estados'  => [self::Cancelado->value],
             ],
         ];
     }

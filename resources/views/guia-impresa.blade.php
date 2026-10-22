@@ -156,15 +156,29 @@
                     </div>
                 @endif
 
-                @if ($orden->referencias->count())
+                {{-- Las de ESTA caja, no las del envío. Dos cajas de la misma
+                     guía pueden llevar dispensaciones distintas, y una etiqueta
+                     que las mezclara mandaría a buscar en la caja equivocada. --}}
+                @php($refs = $paquete->referenciasEfectivas())
+
+                @if ($refs->count())
                     <div class="par">
                         <div class="et">{{ $orden->cliente->etiqueta_referencia ?: 'Referencias' }}</div>
                         <div class="va">
+                            {{-- Una caja puede llevar decenas y en 10 × 10 cm no caben.
+                                 Se imprimen las primeras y se dice cuántas faltan: quien
+                                 necesite la lista entera la tiene en el portal, y quien
+                                 tiene la caja delante solo necesita reconocerla. --}}
                             <ul class="refs">
-                                @foreach ($orden->referencias as $r)
+                                @foreach ($refs->take(6) as $r)
                                     <li>{{ $r->tipo->etiqueta() }}: <strong>{{ $r->valor }}</strong></li>
                                 @endforeach
                             </ul>
+                            @if ($refs->count() > 6)
+                                <div style="font-size:5.5pt;color:#667788">
+                                    y {{ $refs->count() - 6 }} más · {{ $refs->count() }} en total
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endif

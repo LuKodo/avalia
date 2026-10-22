@@ -1,0 +1,1001 @@
+<title>Prototipo LTP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#F4F6F3; --surface:#FFFFFF; --surface-2:#EAEEE9; --surface-3:#DFE5E0;
+  --ink:#14201C; --ink-2:#41504B; --ink-3:#6B7A74;
+  --line:#D4DBD5; --line-strong:#B3BEB7;
+  --accent:#0D5C4F; --accent-soft:#DDEBE6; --accent-ink:#0A463C; --on-accent:#FFFFFF;
+  --cold:#25628F; --cold-soft:#DEEAF4;
+  --warn:#8A5D08; --warn-soft:#F3E8D0;
+  --crit:#982E29; --crit-soft:#F4DFDD;
+  --ok:#2C6B3C; --ok-soft:#DEEDE1;
+  --chrome:#1B2925; --chrome-ink:#C9D5D0;
+  --shadow:0 1px 2px rgba(20,32,28,.06), 0 18px 40px -28px rgba(20,32,28,.45);
+  --sans:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1614; --surface:#152020; --surface-2:#1C2926; --surface-3:#24322E;
+    --ink:#E7EEEA; --ink-2:#AFBEB8; --ink-3:#7F908A;
+    --line:#2A3833; --line-strong:#3E4F49;
+    --accent:#54C2A8; --accent-soft:#123029; --accent-ink:#7FD7C1; --on-accent:#08211C;
+    --cold:#74B4E2; --cold-soft:#12293A;
+    --warn:#DCA847; --warn-soft:#33280F;
+    --crit:#E3746C; --crit-soft:#3B1D1B;
+    --ok:#72C186; --ok-soft:#15301C;
+    --chrome:#0A1210; --chrome-ink:#8FA39C;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 20px 44px -30px rgba(0,0,0,1);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1614; --surface:#152020; --surface-2:#1C2926; --surface-3:#24322E;
+  --ink:#E7EEEA; --ink-2:#AFBEB8; --ink-3:#7F908A;
+  --line:#2A3833; --line-strong:#3E4F49;
+  --accent:#54C2A8; --accent-soft:#123029; --accent-ink:#7FD7C1; --on-accent:#08211C;
+  --cold:#74B4E2; --cold-soft:#12293A;
+  --warn:#DCA847; --warn-soft:#33280F;
+  --crit:#E3746C; --crit-soft:#3B1D1B;
+  --ok:#72C186; --ok-soft:#15301C;
+  --chrome:#0A1210; --chrome-ink:#8FA39C;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 20px 44px -30px rgba(0,0,0,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+button{font:inherit;color:inherit;border:none;background:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ===== shell ===== */
+.shell{display:grid;grid-template-columns:264px minmax(0,1fr);min-height:100vh}
+@media (max-width:900px){.shell{grid-template-columns:1fr}}
+
+.rail{background:var(--surface);border-right:1px solid var(--line);padding:1.6rem 1.2rem;display:flex;flex-direction:column;gap:1.4rem}
+@media (max-width:900px){.rail{border-right:none;border-bottom:1px solid var(--line)}}
+.brand{font-weight:700;font-size:1.5rem;letter-spacing:-.04em;margin:0}
+.brand span{color:var(--accent)}
+.brand-sub{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:.3rem 0 0}
+.rail-note{font-size:.78rem;color:var(--ink-3);line-height:1.45;margin:0;border-top:1px solid var(--line);padding-top:1rem}
+.flowlist{display:flex;flex-direction:column;gap:.35rem}
+.flow-h{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:0 0 .5rem}
+.flowbtn{display:grid;grid-template-columns:26px 1fr;gap:.6rem;align-items:center;text-align:left;padding:.55rem .6rem;border-radius:4px;border:1px solid transparent;font-size:.86rem;font-weight:500}
+.flowbtn:hover{background:var(--surface-2)}
+.flowbtn[aria-current="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+.flowbtn i{font-style:normal;font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;color:var(--ink-3);border:1px solid var(--line-strong);border-radius:3px;text-align:center;padding:.1rem 0}
+.flowbtn[aria-current="true"] i{color:var(--accent-ink);border-color:var(--accent)}
+.flowbtn small{display:block;font-weight:400;font-size:.72rem;color:var(--ink-3)}
+.flowbtn[aria-current="true"] small{color:var(--accent-ink);opacity:.8}
+
+/* ===== stage ===== */
+.stage{padding:1.6rem 1.6rem 3rem;display:flex;flex-direction:column;gap:1.1rem;min-width:0}
+.stagebar{display:flex;flex-wrap:wrap;gap:.8rem 1.2rem;align-items:center;justify-content:space-between}
+.steps{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
+.step{font-family:var(--mono);font-size:.68rem;padding:.28rem .5rem;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink-3)}
+.step[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink);font-weight:500}
+.stepsep{color:var(--ink-3);font-family:var(--mono);font-size:.7rem}
+.navbtns{display:flex;gap:.4rem}
+.nb{border:1px solid var(--line-strong);border-radius:4px;padding:.32rem .7rem;font-size:.78rem;font-weight:500;background:var(--surface)}
+.nb:hover{background:var(--surface-2)}
+.nb[disabled]{opacity:.4;cursor:not-allowed}
+.caption{font-size:.82rem;color:var(--ink-3);max-width:70ch;margin:0}
+.caption b{color:var(--ink-2);font-weight:600}
+
+/* ===== device frames ===== */
+.frame-desktop{border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow);max-width:1180px}
+.frame-bar{background:var(--chrome);padding:.5rem .8rem;display:flex;align-items:center;gap:.5rem}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--chrome-ink);opacity:.35}
+.frame-url{font-family:var(--mono);font-size:.68rem;color:var(--chrome-ink);background:rgba(255,255,255,.07);padding:.15rem .6rem;border-radius:3px;margin-left:.5rem}
+.viewport{overflow-x:auto}
+.frame-phone{
+  width:340px;border:9px solid var(--chrome);border-radius:30px;overflow:hidden;
+  background:var(--surface);box-shadow:var(--shadow);flex:none;
+}
+.phone-status{background:var(--chrome);color:var(--chrome-ink);font-family:var(--mono);font-size:.6rem;display:flex;justify-content:space-between;padding:.25rem .9rem .45rem}
+.phones{display:flex;gap:1.6rem;flex-wrap:wrap;align-items:flex-start}
+
+/* ===== generic app chrome ===== */
+.appbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1rem;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.appbar .who{display:flex;align-items:center;gap:.55rem;font-size:.8rem;color:var(--ink-2)}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-size:.68rem;font-weight:700}
+.applogo{font-weight:700;letter-spacing:-.03em;font-size:1rem}
+.applogo span{color:var(--accent)}
+.tabs{display:flex;gap:.2rem}
+.tab{font-size:.78rem;font-weight:500;padding:.3rem .65rem;border-radius:4px;color:var(--ink-3)}
+.tab.on{background:var(--surface-3);color:var(--ink)}
+.body-pad{padding:1.1rem}
+h3.sc{font-size:1.05rem;font-weight:600;letter-spacing:-.01em;margin:0 0 .15rem}
+p.sc{font-size:.8rem;color:var(--ink-3);margin:0 0 1rem}
+
+/* ===== data bits ===== */
+.pill{display:inline-block;font-family:var(--mono);font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;padding:.16rem .42rem;border-radius:2px;white-space:nowrap}
+.p-accent{background:var(--accent-soft);color:var(--accent-ink)}
+.p-cold{background:var(--cold-soft);color:var(--cold)}
+.p-warn{background:var(--warn-soft);color:var(--warn)}
+.p-crit{background:var(--crit-soft);color:var(--crit)}
+.p-ok{background:var(--ok-soft);color:var(--ok)}
+.p-mute{background:var(--surface-3);color:var(--ink-3)}
+table.d{width:100%;border-collapse:collapse;font-size:.8rem}
+table.d th{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:500;text-align:left;padding:.5rem .7rem;background:var(--surface-2);border-bottom:1px solid var(--line);white-space:nowrap}
+table.d td{padding:.6rem .7rem;border-bottom:1px solid var(--line);vertical-align:middle}
+table.d tbody tr:hover{background:var(--surface-2)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem;margin-bottom:1.1rem}
+.kpi{border:1px solid var(--line);border-radius:5px;padding:.7rem .8rem;background:var(--surface)}
+.kpi dt{font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:0 0 .3rem}
+.kpi dd{margin:0;font-size:1.5rem;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.kpi .delta{font-family:var(--mono);font-size:.66rem;font-weight:400;margin-left:.35rem}
+.up{color:var(--ok)}.down{color:var(--crit)}
+.btn{display:inline-flex;align-items:center;gap:.4rem;border-radius:4px;padding:.5rem .9rem;font-size:.82rem;font-weight:600;border:1px solid transparent}
+.btn-pri{background:var(--accent);color:var(--on-accent)}
+.btn-pri:hover{filter:brightness(1.08)}
+.btn-sec{background:var(--surface);border-color:var(--line-strong);color:var(--ink)}
+.btn-sec:hover{background:var(--surface-2)}
+.btn-lg{width:100%;justify-content:center;padding:.95rem;font-size:1rem;border-radius:6px}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.split{display:grid;gap:1rem}
+@media (min-width:820px){.split.c2{grid-template-columns:1.35fr 1fr}.split.c2b{grid-template-columns:1fr 1.25fr}}
+.card{border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden}
+.card-h{padding:.6rem .8rem;border-bottom:1px solid var(--line);background:var(--surface-2);font-family:var(--mono);font-size:.64rem;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);display:flex;justify-content:space-between;align-items:center}
+.card-b{padding:.85rem}
+
+/* choice cards */
+.choices{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:1rem}
+.choice{text-align:left;border:1.5px solid var(--line);border-radius:6px;padding:.8rem;background:var(--surface);display:block}
+.choice:hover{border-color:var(--line-strong)}
+.choice.on{border-color:var(--accent);background:var(--accent-soft)}
+.choice b{display:block;font-size:.88rem;margin-bottom:.2rem}
+.choice small{font-size:.74rem;color:var(--ink-3);line-height:1.35;display:block}
+.choice.on small{color:var(--accent-ink);opacity:.85}
+.field{margin-bottom:.85rem}
+.field label{display:block;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.3rem}
+.fake-input{border:1px solid var(--line-strong);border-radius:4px;padding:.55rem .7rem;font-size:.85rem;background:var(--surface)}
+.fake-input.ph{color:var(--ink-3)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}
+
+/* timeline */
+.tl{list-style:none;margin:0;padding:0}
+.tl li{display:grid;grid-template-columns:14px 1fr;gap:.7rem;padding-bottom:.9rem;position:relative}
+.tl li::before{content:"";position:absolute;left:6px;top:14px;bottom:-2px;width:1px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl .node{width:13px;height:13px;border-radius:50%;border:2px solid var(--line-strong);background:var(--surface);margin-top:3px}
+.tl li.done .node{background:var(--accent);border-color:var(--accent)}
+.tl li.now .node{background:var(--surface);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.tl b{font-size:.82rem;font-weight:600;display:block}
+.tl small{font-family:var(--mono);font-size:.68rem;color:var(--ink-3);display:block}
+.tl .ev{font-size:.76rem;color:var(--ink-2);margin-top:.15rem}
+
+/* map */
+.map{position:relative;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.map svg{display:block;width:100%;height:auto}
+.maplegend{position:absolute;left:.6rem;bottom:.6rem;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:.4rem .6rem;font-family:var(--mono);font-size:.62rem;color:var(--ink-2);display:flex;flex-direction:column;gap:.2rem}
+.maplegend i{font-style:normal;display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:.35rem;vertical-align:middle}
+
+/* alerts */
+.alert{display:grid;grid-template-columns:auto 1fr;gap:.6rem;padding:.6rem .75rem;border-bottom:1px solid var(--line);font-size:.8rem}
+.alert:last-child{border-bottom:none}
+.alert .bar{width:3px;border-radius:2px}
+.alert.crit .bar{background:var(--crit)}
+.alert.warn .bar{background:var(--warn)}
+.alert.info .bar{background:var(--cold)}
+.alert b{display:block;font-size:.82rem;font-weight:600}
+.alert small{font-family:var(--mono);font-size:.66rem;color:var(--ink-3)}
+
+/* score bars */
+.score{display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:center;font-size:.76rem;margin-bottom:.4rem}
+.bar-track{height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;background:var(--accent);border-radius:3px}
+.cand{border:1.5px solid var(--line);border-radius:6px;padding:.75rem;margin-bottom:.6rem;background:var(--surface)}
+.cand.top{border-color:var(--accent);background:var(--accent-soft)}
+.cand-h{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;margin-bottom:.5rem}
+.cand-h b{font-size:.9rem}
+.cand-score{font-family:var(--mono);font-weight:600;font-size:1.05rem;color:var(--accent-ink)}
+.cand.top .cand-score{color:var(--accent-ink)}
+
+/* mobile app */
+.m-head{background:var(--accent);color:var(--on-accent);padding:.8rem 1rem}
+.m-head .t{font-size:1.05rem;font-weight:700;letter-spacing:-.02em}
+.m-head .s{font-family:var(--mono);font-size:.66rem;opacity:.85}
+.m-off{background:var(--warn-soft);color:var(--warn);font-family:var(--mono);font-size:.64rem;padding:.35rem 1rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}
+.m-body{padding:.85rem}
+.task{border:1px solid var(--line);border-left:4px solid var(--line-strong);border-radius:5px;padding:.7rem .8rem;margin-bottom:.6rem;background:var(--surface);display:block;width:100%;text-align:left}
+.task.cold{border-left-color:var(--cold)}
+.task.urg{border-left-color:var(--crit)}
+.task.done{opacity:.55}
+.task-h{display:flex;justify-content:space-between;gap:.5rem;align-items:baseline;margin-bottom:.2rem}
+.task-h b{font-size:.9rem}
+.task .addr{font-size:.8rem;color:var(--ink-2);line-height:1.35}
+.task .meta{font-family:var(--mono);font-size:.66rem;color:var(--ink-3);margin-top:.35rem;display:flex;gap:.7rem;flex-wrap:wrap}
+.scanbox{border:2px dashed var(--line-strong);border-radius:8px;height:170px;display:grid;place-items:center;background:var(--surface-2);margin-bottom:.8rem;position:relative;overflow:hidden}
+.scanline{position:absolute;left:8%;right:8%;height:2px;background:var(--accent);top:50%;box-shadow:0 0 12px var(--accent)}
+.barcode{display:flex;gap:2px;align-items:flex-end;height:52px}
+.barcode i{display:block;width:3px;background:var(--ink);height:100%}
+.steps-m{display:flex;gap:.25rem;margin-bottom:.9rem}
+.steps-m span{flex:1;height:4px;border-radius:2px;background:var(--surface-3)}
+.steps-m span.on{background:var(--accent)}
+.pod-item{display:grid;grid-template-columns:24px 1fr auto;gap:.6rem;align-items:center;padding:.65rem 0;border-bottom:1px solid var(--line);font-size:.85rem}
+.pod-item:last-child{border-bottom:none}
+.chk{width:20px;height:20px;border-radius:50%;border:2px solid var(--line-strong);display:grid;place-items:center;font-size:.7rem}
+.pod-item.ok .chk{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.pod-item small{display:block;font-family:var(--mono);font-size:.64rem;color:var(--ink-3)}
+.sigpad{border:1px solid var(--line-strong);border-radius:5px;background:var(--surface-2);height:110px;position:relative;margin-bottom:.7rem}
+.sigpad svg{position:absolute;inset:0;width:100%;height:100%}
+.sigpad span{position:absolute;bottom:.35rem;left:.6rem;font-family:var(--mono);font-size:.6rem;color:var(--ink-3)}
+.photo{background:var(--surface-3);border-radius:5px;height:120px;display:grid;place-items:center;font-family:var(--mono);font-size:.66rem;color:var(--ink-3);border:1px solid var(--line)}
+.bigok{width:64px;height:64px;border-radius:50%;background:var(--ok-soft);color:var(--ok);display:grid;place-items:center;font-size:1.9rem;margin:1rem auto .8rem}
+.synq{font-family:var(--mono);font-size:.68rem;color:var(--ink-3);border-top:1px solid var(--line);padding-top:.6rem;margin-top:.8rem}
+.synq div{display:flex;justify-content:space-between;padding:.15rem 0}
+.hint{font-family:var(--mono);font-size:.66rem;color:var(--ink-3);text-align:center;margin:.5rem 0 0}
+[hidden]{display:none !important}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+
+<div class="shell">
+<aside class="rail">
+  <div>
+    <p class="brand">LTP<span>.</span></p>
+    <p class="brand-sub">Prototipo navegable · v1.0</p>
+  </div>
+  <nav class="flowlist" aria-label="Flujos">
+    <p class="flow-h">Flujos principales</p>
+    <button class="flowbtn" data-flow="cliente"><i>A</i><span>Portal del cliente<small>5 pantallas</small></span></button>
+    <button class="flowbtn" data-flow="ops"><i>B</i><span>Panel de operaciones<small>3 pantallas</small></span></button>
+    <button class="flowbtn" data-flow="men"><i>C</i><span>App del mensajero<small>5 pantallas</small></span></button>
+  </nav>
+  <p class="rail-note">Prototipo de alta fidelidad para validar flujos y jerarquía de información antes de construir. Los datos son de ejemplo y ninguna acción envía información real.<br><br>Navegue con los botones de cada pantalla, con los pasos superiores o con las flechas ← →.</p>
+</aside>
+
+<main class="stage">
+  <div class="stagebar">
+    <div class="steps" id="steps"></div>
+    <div class="navbtns">
+      <button class="nb" id="prev">← Anterior</button>
+      <button class="nb" id="next">Siguiente →</button>
+    </div>
+  </div>
+  <p class="caption" id="caption"></p>
+
+  <!-- ============ A · PORTAL CLIENTE ============ -->
+  <div class="screen" id="c1" hidden>
+    <div class="frame-desktop">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-url">ltp.pharmaser.com.co/portal</span></div>
+      <div class="viewport">
+      <div class="appbar">
+        <div class="row" style="gap:1.4rem">
+          <span class="applogo">LTP<span>.</span></span>
+          <div class="tabs"><span class="tab on">Mis órdenes</span><span class="tab">Seguimiento</span><span class="tab">Documentos</span><span class="tab">Sedes</span></div>
+        </div>
+        <div class="who"><span>Clínica del Norte</span><span class="avatar">CN</span></div>
+      </div>
+      <div class="body-pad">
+        <div class="row" style="justify-content:space-between;margin-bottom:1rem">
+          <div><h3 class="sc">Mis órdenes</h3><p class="sc">Jueves 21 de agosto · 6 servicios activos</p></div>
+          <button class="btn btn-pri" data-goto="c2">+ Nueva orden</button>
+        </div>
+        <dl class="kpis">
+          <div class="kpi"><dt>En tránsito</dt><dd>4</dd></div>
+          <div class="kpi"><dt>Entregadas hoy</dt><dd>18</dd></div>
+          <div class="kpi"><dt>Cumplimiento mes</dt><dd>97,2<span class="delta up">▲ 1,4</span></dd></div>
+          <div class="kpi"><dt>Novedades abiertas</dt><dd>1</dd></div>
+        </dl>
+        <div class="card">
+          <div class="card-h"><span>Servicios activos</span><span>Actualizado hace 12 s</span></div>
+          <table class="d">
+            <thead><tr><th>Guía</th><th>Contenido</th><th>Destino</th><th>Ventana</th><th>Estado</th><th>Mensajero</th></tr></thead>
+            <tbody>
+              <tr style="cursor:pointer" data-goto="c5">
+                <td class="mono">LTP-260821-0417</td>
+                <td><span class="pill p-cold">Cadena de frío</span></td>
+                <td>Clínica del Norte · Piso 3</td>
+                <td class="mono">10:00 – 12:00</td>
+                <td><span class="pill p-accent">En tránsito</span></td>
+                <td>J. Ramírez</td>
+              </tr>
+              <tr>
+                <td class="mono">LTP-260821-0412</td>
+                <td><span class="pill p-crit">Controlado</span></td>
+                <td>Farmacia Central · Bodega</td>
+                <td class="mono">09:00 – 11:00</td>
+                <td><span class="pill p-accent">En sitio</span></td>
+                <td>M. Ospina</td>
+              </tr>
+              <tr>
+                <td class="mono">LTP-260821-0409</td>
+                <td><span class="pill p-mute">General</span></td>
+                <td>Sede Sur · Recepción</td>
+                <td class="mono">08:00 – 10:00</td>
+                <td><span class="pill p-warn">Novedad</span></td>
+                <td>C. Bedoya</td>
+              </tr>
+              <tr>
+                <td class="mono">LTP-260821-0401</td>
+                <td><span class="pill p-cold">Cadena de frío</span></td>
+                <td>Hospital San Rafael · Urgencias</td>
+                <td class="mono">07:30 – 09:30</td>
+                <td><span class="pill p-ok">Entregada</span></td>
+                <td>J. Ramírez</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="c2" hidden>
+    <div class="frame-desktop" style="max-width:860px">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-url">ltp.pharmaser.com.co/portal/ordenes/nueva</span></div>
+      <div class="viewport">
+      <div class="appbar"><span class="applogo">LTP<span>.</span></span><div class="who"><span>Paso 1 de 3 · Contenido</span></div></div>
+      <div class="body-pad">
+        <h3 class="sc">¿Qué vamos a transportar?</h3>
+        <p class="sc">La categoría determina el vehículo, el mensajero habilitado y los controles obligatorios en ruta.</p>
+        <div class="choices">
+          <button class="choice on"><b>❄ Cadena de frío</b><small>Requiere vehículo refrigerado y registro de temperatura en recolección y entrega.</small></button>
+          <button class="choice"><b>⊘ Control especial</b><small>Exige mensajero certificado y cadena de custodia reforzada.</small></button>
+          <button class="choice"><b>◻ General</b><small>Sin requisitos térmicos ni de custodia especial.</small></button>
+        </div>
+        <div class="field">
+          <label>Rango térmico exigido</label>
+          <div class="row">
+            <div class="fake-input mono" style="flex:1">2 °C</div>
+            <span style="color:var(--ink-3)">a</span>
+            <div class="fake-input mono" style="flex:1">8 °C</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Descripción del contenido</label>
+          <div class="fake-input">Nevera con 3 viales de insulina · Lote INS-2026-0842</div>
+        </div>
+        <h4 style="font-family:var(--mono);font-size:.64rem;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);margin:1.3rem 0 .5rem">Criticidad</h4>
+        <div class="choices">
+          <button class="choice on"><b>⚡ Urgente</b><small>Despacho inmediato, recargo del 40 %. Entrega comprometida en 3 horas.</small></button>
+          <button class="choice"><b>◷ Programado</b><small>Se agrupa en la ruta del día dentro de la ventana escogida.</small></button>
+        </div>
+        <div class="row" style="justify-content:flex-end;margin-top:1.2rem">
+          <button class="btn btn-sec" data-goto="c1">Cancelar</button>
+          <button class="btn btn-pri" data-goto="c3">Continuar →</button>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="c3" hidden>
+    <div class="frame-desktop" style="max-width:860px">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-url">ltp.pharmaser.com.co/portal/ordenes/nueva</span></div>
+      <div class="viewport">
+      <div class="appbar"><span class="applogo">LTP<span>.</span></span><div class="who"><span>Paso 2 de 3 · Ruta y medidas</span></div></div>
+      <div class="body-pad">
+        <h3 class="sc">Origen, destino y dimensiones</h3>
+        <p class="sc">Las sedes vienen del catálogo con coordenada verificada en campo, por eso no se escriben a mano.</p>
+        <div class="split c2">
+          <div>
+            <div class="field"><label>Recoger en</label><div class="fake-input">Bodega Central Pharmaser · Cra 48 #32-14, Medellín</div></div>
+            <div class="field"><label>Entregar en</label><div class="fake-input">Clínica del Norte · Piso 3, Farmacia interna</div></div>
+            <div class="field"><label>Contacto en destino</label><div class="fake-input">Q.F. Diana Restrepo · ext. 3120</div></div>
+            <div class="field"><label>Ventana de entrega</label>
+              <div class="row"><div class="fake-input mono" style="flex:1">21/08/2026</div><div class="fake-input mono" style="flex:1">10:00</div><div class="fake-input mono" style="flex:1">12:00</div></div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-h">Paquete 1 de 1</div>
+              <div class="card-b">
+                <div class="field"><label>Dimensiones (cm)</label>
+                  <div class="grid3"><div class="fake-input mono">40</div><div class="fake-input mono">30</div><div class="fake-input mono">28</div></div>
+                </div>
+                <div class="field"><label>Peso (kg)</label><div class="fake-input mono">4,2</div></div>
+                <div class="row"><button class="btn btn-sec" style="width:100%;justify-content:center">+ Agregar otro paquete</button></div>
+              </div>
+            </div>
+            <div class="card" style="margin-top:.8rem">
+              <div class="card-h">Tarifa estimada</div>
+              <div class="card-b mono" style="font-size:.78rem">
+                <div class="row" style="justify-content:space-between"><span>Zona 2 · refrigerado</span><span>$ 28.400</span></div>
+                <div class="row" style="justify-content:space-between;color:var(--warn)"><span>Recargo urgente 40 %</span><span>$ 11.360</span></div>
+                <div class="row" style="justify-content:space-between;font-size:1rem;font-weight:600;border-top:1px solid var(--line);margin-top:.5rem;padding-top:.5rem"><span>Total</span><span>$ 39.760</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row" style="justify-content:flex-end;margin-top:1.2rem">
+          <button class="btn btn-sec" data-goto="c2">← Atrás</button>
+          <button class="btn btn-pri" data-goto="c4">Confirmar orden</button>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="c4" hidden>
+    <div class="frame-desktop" style="max-width:700px">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-url">ltp.pharmaser.com.co/portal/ordenes/LTP-260821-0418</span></div>
+      <div class="viewport">
+      <div class="appbar"><span class="applogo">LTP<span>.</span></span><div class="who"><span>Paso 3 de 3 · Confirmación</span></div></div>
+      <div class="body-pad" style="text-align:center">
+        <div class="bigok">✓</div>
+        <h3 class="sc">Orden creada y en despacho</h3>
+        <p class="sc">Operaciones ya la está asignando. Recibirá una notificación cuando un mensajero la tome.</p>
+        <div class="card" style="max-width:420px;margin:1rem auto;text-align:left">
+          <div class="card-h"><span>Guía digital</span><span class="pill p-cold">Cadena de frío</span></div>
+          <div class="card-b" style="text-align:center">
+            <div class="mono" style="font-size:1.15rem;font-weight:600;letter-spacing:.02em">LTP-260821-0418</div>
+            <div class="barcode" style="justify-content:center;margin:.9rem 0 .4rem;height:44px">
+              <i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:6px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:5px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:6px"></i><i style="width:3px"></i><i style="width:2px"></i><i style="width:5px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:6px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:4px"></i>
+            </div>
+            <p style="font-size:.74rem;color:var(--ink-3);margin:0">Imprima y adhiera esta etiqueta al paquete antes de la recolección.</p>
+          </div>
+        </div>
+        <div class="row" style="justify-content:center">
+          <button class="btn btn-sec">⤓ Descargar guía PDF</button>
+          <button class="btn btn-pri" data-goto="c5">Ver seguimiento</button>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="c5" hidden>
+    <div class="frame-desktop">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-url">ltp.pharmaser.com.co/portal/seguimiento/LTP-260821-0417</span></div>
+      <div class="viewport">
+      <div class="appbar">
+        <div class="row" style="gap:1.4rem"><span class="applogo">LTP<span>.</span></span><div class="tabs"><span class="tab">Mis órdenes</span><span class="tab on">Seguimiento</span><span class="tab">Documentos</span></div></div>
+        <div class="who"><span>Clínica del Norte</span><span class="avatar">CN</span></div>
+      </div>
+      <div class="body-pad">
+        <div class="row" style="justify-content:space-between;margin-bottom:.9rem">
+          <div>
+            <h3 class="sc mono">LTP-260821-0417</h3>
+            <p class="sc">Bodega Central → Clínica del Norte, Piso 3 · Ventana 10:00 – 12:00</p>
+          </div>
+          <div class="row"><span class="pill p-cold">Cadena de frío</span><span class="pill p-accent">En tránsito</span></div>
+        </div>
+        <div class="split c2">
+          <div class="card">
+            <div class="card-h"><span>Posición en vivo</span><span>Actualizado hace 4 s</span></div>
+            <div class="map">
+              <svg viewBox="0 0 640 340" role="img" aria-label="Mapa con la ruta del mensajero entre la bodega y la clínica">
+                <rect width="640" height="340" fill="var(--surface-2)"/>
+                <g stroke="var(--line)" stroke-width="10" opacity=".85">
+                  <path d="M0 70 H640"/><path d="M0 175 H640"/><path d="M0 280 H640"/>
+                  <path d="M110 0 V340"/><path d="M300 0 V340"/><path d="M480 0 V340"/>
+                </g>
+                <g stroke="var(--line)" stroke-width="4" opacity=".6">
+                  <path d="M0 120 H640"/><path d="M0 230 H640"/><path d="M200 0 V340"/><path d="M390 0 V340"/><path d="M570 0 V340"/>
+                </g>
+                <rect x="316" y="86" width="60" height="26" fill="var(--surface-3)" opacity=".7"/>
+                <rect x="500" y="190" width="52" height="30" fill="var(--surface-3)" opacity=".7"/>
+                <path d="M110 280 L110 175 L300 175 L300 120 L480 120 L480 70" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 0" opacity=".95"/>
+                <path d="M480 120 L480 70" fill="none" stroke="var(--accent)" stroke-width="4" stroke-dasharray="7 6" opacity=".45"/>
+                <circle cx="110" cy="280" r="8" fill="var(--surface)" stroke="var(--accent)" stroke-width="3"/>
+                <circle cx="480" cy="70" r="9" fill="var(--cold)" stroke="var(--surface)" stroke-width="3"/>
+                <circle cx="480" cy="120" r="13" fill="var(--accent)" opacity=".2"/>
+                <circle cx="480" cy="120" r="7" fill="var(--accent)" stroke="var(--surface)" stroke-width="2.5"/>
+              </svg>
+              <div class="maplegend">
+                <span><i style="background:var(--accent);opacity:.5"></i>Origen</span>
+                <span><i style="background:var(--accent)"></i>Mensajero</span>
+                <span><i style="background:var(--cold)"></i>Destino</span>
+              </div>
+            </div>
+            <div class="card-b" style="border-top:1px solid var(--line)">
+              <div class="row" style="justify-content:space-between;font-size:.8rem">
+                <span><b>J. Ramírez</b> · Camioneta refrigerada <span class="mono">WKN-482</span></span>
+                <span class="mono">Llegada estimada 11:12</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom:.8rem">
+              <div class="card-h">Temperatura</div>
+              <div class="card-b">
+                <div class="row" style="justify-content:space-between;align-items:baseline">
+                  <span class="mono" style="font-size:1.7rem;font-weight:600;color:var(--cold)">4,8 °C</span>
+                  <span class="pill p-ok">Dentro de rango</span>
+                </div>
+                <p style="font-size:.74rem;color:var(--ink-3);margin:.4rem 0 0">Rango exigido 2 – 8 °C · Última lectura en recolección, 10:03</p>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h">Trazabilidad</div>
+              <div class="card-b">
+                <ul class="tl">
+                  <li class="done"><span class="node"></span><div><b>Orden creada</b><small>09:41 · Portal · D. Restrepo</small></div></li>
+                  <li class="done"><span class="node"></span><div><b>Asignada a J. Ramírez</b><small>09:44 · Automática · puntaje 87</small></div></li>
+                  <li class="done"><span class="node"></span><div><b>Recolectada</b><small>10:03 · Bodega Central · 6.2447, -75.5812</small><span class="ev">Escaneo válido · temperatura 4,6 °C</span></div></li>
+                  <li class="now"><span class="node"></span><div><b>En tránsito</b><small>10:05 · en curso</small></div></li>
+                  <li><span class="node"></span><div><b>Entrega</b><small>estimada 11:12</small></div></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ B · OPERACIONES ============ -->
+  <div class="screen" id="o1" hidden>
+    <div class="frame-desktop">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-url">ltp.pharmaser.com.co/despacho</span></div>
+      <div class="viewport">
+      <div class="appbar">
+        <div class="row" style="gap:1.4rem"><span class="applogo">LTP<span>.</span></span><div class="tabs"><span class="tab on">Despacho</span><span class="tab">Flota</span><span class="tab">Zonas y tarifas</span><span class="tab">Trazabilidad</span><span class="tab">Reportes</span></div></div>
+        <div class="who"><span>A. Gómez · Operador</span><span class="avatar">AG</span></div>
+      </div>
+      <div class="body-pad">
+        <dl class="kpis">
+          <div class="kpi"><dt>Sin asignar</dt><dd style="color:var(--crit)">7</dd></div>
+          <div class="kpi"><dt>En ruta</dt><dd>34</dd></div>
+          <div class="kpi"><dt>Riesgo de ventana</dt><dd style="color:var(--warn)">3</dd></div>
+          <div class="kpi"><dt>Mensajeros activos</dt><dd>22<span class="delta">/28</span></dd></div>
+          <div class="kpi"><dt>Cumplimiento hoy</dt><dd>96,1</dd></div>
+        </dl>
+        <div class="card">
+          <div class="card-h"><span>Bandeja de despacho · sin asignar</span><span>Orden por criticidad y holgura</span></div>
+          <table class="d">
+            <thead><tr><th>Guía</th><th>Cliente</th><th>Tipo</th><th>Recoger en</th><th>Ventana</th><th>Holgura</th><th>Sugerencia</th><th></th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">LTP-260821-0418</td>
+                <td>Clínica del Norte</td>
+                <td><span class="pill p-cold">Frío</span> <span class="pill p-crit">Urgente</span></td>
+                <td>Bodega Central</td>
+                <td class="mono">10:00–12:00</td>
+                <td class="mono" style="color:var(--warn)">38 min</td>
+                <td>J. Ramírez <span class="mono" style="color:var(--accent)">87</span></td>
+                <td><button class="btn btn-pri" style="padding:.3rem .7rem;font-size:.75rem" data-goto="o2">Asignar</button></td>
+              </tr>
+              <tr>
+                <td class="mono">LTP-260821-0419</td>
+                <td>Hospital San Rafael</td>
+                <td><span class="pill p-crit">Controlado</span></td>
+                <td>Bodega Norte</td>
+                <td class="mono">11:00–13:00</td>
+                <td class="mono">1 h 52</td>
+                <td>M. Ospina <span class="mono" style="color:var(--accent)">81</span></td>
+                <td><button class="btn btn-sec" style="padding:.3rem .7rem;font-size:.75rem" data-goto="o2">Asignar</button></td>
+              </tr>
+              <tr>
+                <td class="mono">LTP-260821-0420</td>
+                <td>Farmacia Central</td>
+                <td><span class="pill p-mute">General</span></td>
+                <td>Sede Sur</td>
+                <td class="mono">13:00–17:00</td>
+                <td class="mono">3 h 40</td>
+                <td>C. Bedoya <span class="mono" style="color:var(--accent)">74</span></td>
+                <td><button class="btn btn-sec" style="padding:.3rem .7rem;font-size:.75rem" data-goto="o2">Asignar</button></td>
+              </tr>
+              <tr>
+                <td class="mono">LTP-260821-0421</td>
+                <td>Clínica del Norte</td>
+                <td><span class="pill p-cold">Frío</span></td>
+                <td>Bodega Central</td>
+                <td class="mono">14:00–16:00</td>
+                <td class="mono">4 h 20</td>
+                <td>Sin candidato con refrigeración</td>
+                <td><button class="btn btn-sec" style="padding:.3rem .7rem;font-size:.75rem" data-goto="o2">Revisar</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="o2" hidden>
+    <div class="frame-desktop" style="max-width:900px">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-url">ltp.pharmaser.com.co/despacho/LTP-260821-0418/asignar</span></div>
+      <div class="viewport">
+      <div class="appbar"><span class="applogo">LTP<span>.</span></span><div class="who"><span>Asignación asistida</span></div></div>
+      <div class="body-pad">
+        <div class="row" style="justify-content:space-between;margin-bottom:.9rem">
+          <div><h3 class="sc mono">LTP-260821-0418</h3><p class="sc">Bodega Central → Clínica del Norte · ventana 10:00–12:00</p></div>
+          <div class="row"><span class="pill p-cold">Cadena de frío 2–8 °C</span><span class="pill p-crit">Urgente</span></div>
+        </div>
+        <div class="split c2b">
+          <div class="card">
+            <div class="card-h">Filtro duro aplicado</div>
+            <div class="card-b" style="font-size:.8rem">
+              <div class="pod-item ok"><span class="chk">✓</span><span>Vehículo refrigerado</span><span class="mono" style="color:var(--ink-3)">6 de 28</span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Capacidad disponible ≥ 4,2 kg</span><span class="mono" style="color:var(--ink-3)">5</span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Zona 2 habilitada</span><span class="mono" style="color:var(--ink-3)">4</span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Turno activo ahora</span><span class="mono" style="color:var(--ink-3)">3</span></div>
+              <p style="font-size:.74rem;color:var(--ink-3);margin:.7rem 0 0">De 28 mensajeros, 3 pueden tomar este servicio. El puntaje ordena entre ellos.</p>
+            </div>
+          </div>
+          <div>
+            <div class="cand top">
+              <div class="cand-h"><b>Julián Ramírez</b><span class="cand-score">87</span></div>
+              <div class="row" style="font-size:.74rem;color:var(--ink-3);margin-bottom:.6rem"><span class="mono">Camioneta WKN-482</span><span class="mono">3 paquetes activos</span><span class="mono">a 2,1 km</span></div>
+              <div class="score"><div><div class="bar-track"><div class="bar-fill" style="width:92%"></div></div></div><span class="mono" style="font-size:.68rem">Cercanía 92</span></div>
+              <div class="score"><div><div class="bar-track"><div class="bar-fill" style="width:84%"></div></div></div><span class="mono" style="font-size:.68rem">Holgura 84</span></div>
+              <div class="score"><div><div class="bar-track"><div class="bar-fill" style="width:78%"></div></div></div><span class="mono" style="font-size:.68rem">Carga 78</span></div>
+              <div class="score"><div><div class="bar-track"><div class="bar-fill" style="width:90%"></div></div></div><span class="mono" style="font-size:.68rem">Ruta 90</span></div>
+              <button class="btn btn-pri" style="width:100%;justify-content:center;margin-top:.6rem" data-goto="o3">Asignar a Julián</button>
+            </div>
+            <div class="cand">
+              <div class="cand-h"><b>Marcela Ospina</b><span class="cand-score" style="color:var(--ink-2)">73</span></div>
+              <div class="row" style="font-size:.74rem;color:var(--ink-3);margin-bottom:.6rem"><span class="mono">Camioneta TQL-115</span><span class="mono">5 paquetes activos</span><span class="mono">a 4,8 km</span></div>
+              <div class="score"><div><div class="bar-track"><div class="bar-fill" style="width:64%"></div></div></div><span class="mono" style="font-size:.68rem">Cercanía 64</span></div>
+              <div class="score"><div><div class="bar-track"><div class="bar-fill" style="width:71%"></div></div></div><span class="mono" style="font-size:.68rem">Holgura 71</span></div>
+              <button class="btn btn-sec" style="width:100%;justify-content:center;margin-top:.6rem" data-goto="o3">Asignar a Marcela</button>
+            </div>
+            <p style="font-size:.74rem;color:var(--ink-3);margin:.2rem 0 0">Toda anulación de la sugerencia pide un motivo. Esos motivos alimentan la calibración de los pesos.</p>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="o3" hidden>
+    <div class="frame-desktop">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="frame-url">ltp.pharmaser.com.co/flota</span></div>
+      <div class="viewport">
+      <div class="appbar">
+        <div class="row" style="gap:1.4rem"><span class="applogo">LTP<span>.</span></span><div class="tabs"><span class="tab">Despacho</span><span class="tab on">Flota</span><span class="tab">Zonas y tarifas</span><span class="tab">Trazabilidad</span></div></div>
+        <div class="who"><span>A. Gómez · Operador</span><span class="avatar">AG</span></div>
+      </div>
+      <div class="body-pad">
+        <div class="split c2">
+          <div class="card">
+            <div class="card-h"><span>Flota en vivo · 22 mensajeros</span><span>Refresco 5 s</span></div>
+            <div class="map">
+              <svg viewBox="0 0 640 400" role="img" aria-label="Mapa de la ciudad con la posición de los mensajeros activos">
+                <rect width="640" height="400" fill="var(--surface-2)"/>
+                <g stroke="var(--line)" stroke-width="11" opacity=".8">
+                  <path d="M0 90 H640"/><path d="M0 205 H640"/><path d="M0 320 H640"/>
+                  <path d="M130 0 V400"/><path d="M330 0 V400"/><path d="M510 0 V400"/>
+                </g>
+                <g stroke="var(--line)" stroke-width="4" opacity=".55">
+                  <path d="M0 145 H640"/><path d="M0 265 H640"/><path d="M230 0 V400"/><path d="M420 0 V400"/>
+                </g>
+                <g opacity=".55" fill="var(--surface-3)">
+                  <rect x="150" y="105" width="60" height="28"/><rect x="350" y="220" width="55" height="32"/><rect x="530" y="150" width="70" height="35"/>
+                </g>
+                <circle cx="200" cy="60" r="52" fill="var(--accent)" opacity=".05"/>
+                <circle cx="470" cy="300" r="60" fill="var(--cold)" opacity=".05"/>
+                <g stroke="var(--surface)" stroke-width="2.5">
+                  <circle cx="130" cy="205" r="7" fill="var(--accent)"/>
+                  <circle cx="330" cy="90" r="7" fill="var(--accent)"/>
+                  <circle cx="510" cy="265" r="7" fill="var(--accent)"/>
+                  <circle cx="230" cy="320" r="7" fill="var(--accent)"/>
+                  <circle cx="420" cy="145" r="7" fill="var(--cold)"/>
+                  <circle cx="130" cy="90" r="7" fill="var(--accent)"/>
+                  <circle cx="330" cy="320" r="8" fill="var(--warn)"/>
+                  <circle cx="510" cy="90" r="8" fill="var(--crit)"/>
+                </g>
+                <circle cx="510" cy="90" r="16" fill="none" stroke="var(--crit)" stroke-width="2" opacity=".55"/>
+                <circle cx="330" cy="320" r="15" fill="none" stroke="var(--warn)" stroke-width="2" opacity=".5"/>
+              </svg>
+              <div class="maplegend">
+                <span><i style="background:var(--accent)"></i>En ruta, sin novedad</span>
+                <span><i style="background:var(--cold)"></i>Refrigerado</span>
+                <span><i style="background:var(--warn)"></i>Demora</span>
+                <span><i style="background:var(--crit)"></i>Alerta activa</span>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span>Alertas</span><span>4 abiertas</span></div>
+            <div class="alert crit">
+              <span class="bar"></span>
+              <div>
+                <b>Excursión térmica · LTP-260821-0402</b>
+                <small>11:24 · C. Bedoya · 9,3 °C sobre rango 2–8 °C</small>
+                <div class="row" style="margin-top:.4rem"><button class="btn btn-sec" style="padding:.25rem .6rem;font-size:.72rem">Llamar</button><button class="btn btn-sec" style="padding:.25rem .6rem;font-size:.72rem">Abrir novedad</button></div>
+              </div>
+            </div>
+            <div class="alert warn">
+              <span class="bar"></span>
+              <div><b>Riesgo de ventana · LTP-260821-0407</b><small>11:19 · llegada proyectada 12:14, comprometida 12:00</small></div>
+            </div>
+            <div class="alert warn">
+              <span class="bar"></span>
+              <div><b>Desvío de ruta · M. Ospina</b><small>11:11 · 1,8 km fuera del corredor previsto</small></div>
+            </div>
+            <div class="alert info">
+              <span class="bar"></span>
+              <div><b>Sin señal · J. Vélez</b><small>11:02 · 14 min sin reporte · último punto Hospital San Rafael, sótano</small></div>
+            </div>
+            <div class="alert info">
+              <span class="bar"></span>
+              <div><b>Batería baja · C. Bedoya</b><small>10:58 · 12 % restante</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ C · APP MENSAJERO ============ -->
+  <div class="screen" id="m1" hidden>
+    <div class="phones">
+      <div class="frame-phone">
+        <div class="phone-status"><span>11:07</span><span>▮▮▯ ⌁ 62 %</span></div>
+        <div class="m-head"><div class="t">Mis tareas</div><div class="s">Jueves 21 ago · 8 pendientes · 12 hechas</div></div>
+        <div class="m-off"><span>◍ Sin conexión · trabajando local</span><span>3 por sincronizar</span></div>
+        <div class="m-body">
+          <button class="task cold" data-goto="m2">
+            <div class="task-h"><b>Recoger</b><span class="pill p-cold">Frío</span></div>
+            <div class="addr">Bodega Central Pharmaser<br>Cra 48 #32-14</div>
+            <div class="meta"><span>10:00–12:00</span><span>2,1 km</span><span class="mono">0418</span></div>
+          </button>
+          <button class="task urg" data-goto="m4">
+            <div class="task-h"><b>Entregar</b><span class="pill p-crit">Urgente</span></div>
+            <div class="addr">Clínica del Norte · Piso 3<br>Farmacia interna</div>
+            <div class="meta"><span>Vence 12:00</span><span>4,4 km</span><span class="mono">0417</span></div>
+          </button>
+          <button class="task">
+            <div class="task-h"><b>Entregar</b><span class="pill p-mute">General</span></div>
+            <div class="addr">Farmacia Central · Bodega</div>
+            <div class="meta"><span>13:00–17:00</span><span>7,8 km</span><span class="mono">0409</span></div>
+          </button>
+          <button class="task done">
+            <div class="task-h"><b>Entregado ✓</b><span class="pill p-ok">10:44</span></div>
+            <div class="addr">Hospital San Rafael · Urgencias</div>
+          </button>
+        </div>
+      </div>
+      <div class="frame-phone">
+        <div class="phone-status"><span>11:07</span><span>▮▮▯ ⌁ 62 %</span></div>
+        <div class="m-head"><div class="t">Recolección</div><div class="s mono">LTP-260821-0418</div></div>
+        <div class="m-body">
+          <div class="card" style="margin-bottom:.8rem">
+            <div class="card-b" style="font-size:.85rem">
+              <b>Bodega Central Pharmaser</b>
+              <div style="color:var(--ink-2);margin:.15rem 0 .5rem">Cra 48 #32-14 · Muelle 2</div>
+              <div class="row"><span class="pill p-cold">2–8 °C</span><span class="pill p-crit">Urgente</span></div>
+              <div class="mono" style="font-size:.7rem;color:var(--ink-3);margin-top:.6rem">1 paquete · 4,2 kg · 40×30×28 cm</div>
+            </div>
+          </div>
+          <button class="btn btn-sec btn-lg" style="margin-bottom:.6rem">🧭 Abrir en Waze</button>
+          <button class="btn btn-pri btn-lg" data-goto="m2">Llegué al punto</button>
+          <p class="hint">Contacto: bodega ext. 210</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="m2" hidden>
+    <div class="phones">
+      <div class="frame-phone">
+        <div class="phone-status"><span>11:14</span><span>▮▮▯ ⌁ 61 %</span></div>
+        <div class="m-head"><div class="t">Escanear paquete</div><div class="s">Paso 1 de 2 · Recolección</div></div>
+        <div class="m-body">
+          <div class="steps-m"><span class="on"></span><span></span></div>
+          <div class="scanbox">
+            <div class="barcode">
+              <i style="width:3px"></i><i style="width:5px"></i><i style="width:2px"></i><i style="width:7px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:6px"></i><i style="width:2px"></i><i style="width:3px"></i><i style="width:7px"></i><i style="width:2px"></i><i style="width:5px"></i><i style="width:3px"></i><i style="width:2px"></i><i style="width:6px"></i>
+            </div>
+            <div class="scanline"></div>
+          </div>
+          <p style="font-size:.82rem;color:var(--ink-2);text-align:center;margin:0 0 .8rem">Apunte al código de la etiqueta.<br>Sin escaneo válido no se puede recolectar.</p>
+          <button class="btn btn-pri btn-lg" data-goto="m3">Simular escaneo ✓</button>
+          <button class="btn btn-sec btn-lg" style="margin-top:.5rem">Ingresar código a mano</button>
+        </div>
+      </div>
+      <div class="frame-phone">
+        <div class="phone-status"><span>11:15</span><span>▮▮▯ ⌁ 61 %</span></div>
+        <div class="m-head"><div class="t">Temperatura</div><div class="s">Paso 2 de 2 · Recolección</div></div>
+        <div class="m-body">
+          <div class="steps-m"><span class="on"></span><span class="on"></span></div>
+          <p style="font-size:.85rem;margin:0 0 .7rem">Registre la lectura del datalogger antes de cerrar el paquete.</p>
+          <div class="field"><label>Lectura (°C)</label><div class="fake-input mono" style="font-size:1.4rem;text-align:center;padding:.7rem">4,6</div></div>
+          <div class="row" style="justify-content:center;margin-bottom:.7rem"><span class="pill p-ok">Dentro de rango 2 – 8 °C</span></div>
+          <div class="photo" style="margin-bottom:.8rem">📷 Foto del indicador · tomada</div>
+          <button class="btn btn-pri btn-lg" data-goto="m3">Confirmar recolección</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="m3" hidden>
+    <div class="phones">
+      <div class="frame-phone">
+        <div class="phone-status"><span>11:16</span><span>▮▮▯ ⌁ 61 %</span></div>
+        <div class="m-head" style="background:var(--ok)"><div class="t">Recolectado</div><div class="s mono">LTP-260821-0418</div></div>
+        <div class="m-body">
+          <div class="bigok">✓</div>
+          <p style="text-align:center;font-size:.88rem;margin:0 0 .3rem"><b>Paquete bajo su custodia</b></p>
+          <p style="text-align:center;font-size:.78rem;color:var(--ink-3);margin:0 0 1rem">11:16 · 6.2447, -75.5812 · registrado sin conexión</p>
+          <div class="card">
+            <div class="card-b" style="font-size:.8rem">
+              <div class="pod-item ok"><span class="chk">✓</span><span>Escaneo válido<small>LTP-260821-0418</small></span><span></span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Temperatura 4,6 °C<small>dentro de rango</small></span><span></span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Foto del indicador<small>en cola de subida</small></span><span></span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Ubicación sellada<small>precisión 6 m</small></span><span></span></div>
+            </div>
+          </div>
+          <div class="synq">
+            <div><span>◍ Sin conexión</span><span>4 pendientes</span></div>
+            <div><span>Se enviará al recuperar señal</span><span>—</span></div>
+          </div>
+          <button class="btn btn-pri btn-lg" style="margin-top:.8rem" data-goto="m4">Siguiente tarea →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="m4" hidden>
+    <div class="phones">
+      <div class="frame-phone">
+        <div class="phone-status"><span>11:48</span><span>▮▮▯ ⌁ 58 %</span></div>
+        <div class="m-head"><div class="t">Prueba de entrega</div><div class="s mono">LTP-260821-0417 · Clínica del Norte</div></div>
+        <div class="m-body">
+          <div class="steps-m"><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div>
+          <p style="font-size:.82rem;color:var(--ink-2);margin:0 0 .8rem">Paso 4 de 4 · Firma del receptor</p>
+          <div class="card" style="margin-bottom:.8rem">
+            <div class="card-b" style="padding:.7rem">
+              <div class="pod-item ok"><span class="chk">✓</span><span>Escaneo en destino<small>11:44</small></span><span></span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Documento del receptor<small>C.C. 43.881.204 · Diana Restrepo</small></span><span></span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Foto del receptor<small>tomada 11:46</small></span><span></span></div>
+            </div>
+          </div>
+          <div class="sigpad">
+            <svg viewBox="0 0 300 110" role="img" aria-label="Firma manuscrita del receptor">
+              <path d="M28 74 C46 34, 62 30, 70 58 C77 82, 88 84, 96 60 C104 36, 118 34, 124 62 C130 88, 146 78, 158 52 C168 30, 186 32, 190 60 C194 84, 214 76, 228 54 C238 38, 258 40, 272 58" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>
+            <span>Firme dentro del recuadro</span>
+          </div>
+          <button class="btn btn-pri btn-lg" data-goto="m5">Confirmar entrega</button>
+          <button class="btn btn-sec btn-lg" style="margin-top:.5rem;color:var(--warn)">Registrar novedad</button>
+        </div>
+      </div>
+      <div class="frame-phone">
+        <div class="phone-status"><span>11:46</span><span>▮▮▯ ⌁ 58 %</span></div>
+        <div class="m-head"><div class="t">Validar receptor</div><div class="s">Paso 2 de 4</div></div>
+        <div class="m-body">
+          <div class="steps-m"><span class="on"></span><span class="on"></span><span></span><span></span></div>
+          <div class="field"><label>Nombre de quien recibe</label><div class="fake-input">Diana Restrepo</div></div>
+          <div class="field"><label>Documento de identidad</label><div class="fake-input mono">43.881.204</div></div>
+          <div class="field"><label>Cargo o dependencia</label><div class="fake-input">Química farmacéutica · Farmacia interna</div></div>
+          <div class="photo" style="margin-bottom:.8rem">📷 Tomar foto del receptor</div>
+          <button class="btn btn-pri btn-lg">Continuar →</button>
+          <p class="hint">El receptor autoriza el uso de su imagen y documento para la constancia de entrega.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="m5" hidden>
+    <div class="phones">
+      <div class="frame-phone">
+        <div class="phone-status"><span>11:49</span><span>▮▮▮ ⌁ 58 %</span></div>
+        <div class="m-head" style="background:var(--ok)"><div class="t">Entregado</div><div class="s mono">LTP-260821-0417</div></div>
+        <div class="m-body">
+          <div class="bigok">✓</div>
+          <p style="text-align:center;font-size:.88rem;margin:0 0 .3rem"><b>Entrega completa y probada</b></p>
+          <p style="text-align:center;font-size:.78rem;color:var(--ink-3);margin:0 0 1rem">11:49 · Clínica del Norte · dentro de ventana</p>
+          <div class="card">
+            <div class="card-b" style="font-size:.8rem">
+              <div class="pod-item ok"><span class="chk">✓</span><span>Escaneo en destino</span><span></span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Documento validado</span><span></span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Foto y firma</span><span></span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Geolocalización a 12 m del destino</span><span></span></div>
+              <div class="pod-item ok"><span class="chk">✓</span><span>Temperatura final 5,1 °C</span><span></span></div>
+            </div>
+          </div>
+          <div class="synq">
+            <div><span>▲ Sincronizando</span><span>4 de 7</span></div>
+            <div><span>Evidencias en cola</span><span>2 fotos · 1 firma</span></div>
+            <div><span>Acta enviada al cliente</span><span>pendiente</span></div>
+          </div>
+          <button class="btn btn-pri btn-lg" style="margin-top:.8rem" data-goto="m1">Volver a mis tareas</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+(function(){
+  var FLOWS = {
+    cliente: {
+      label: "Portal del cliente",
+      screens: [
+        {id:"c1", step:"Panel", cap:"<b>Panel del cliente.</b> Lo primero que ve es el estado de lo que está en movimiento hoy, no un menú. Cada fila es clickeable hacia el seguimiento; el botón de nueva orden es la única acción primaria de la pantalla."},
+        {id:"c2", step:"Tipo", cap:"<b>Nueva orden, paso 1.</b> La categoría se escoge antes que cualquier otro dato porque determina el vehículo, el mensajero habilitado y los controles obligatorios en ruta. El rango térmico se captura por paquete, no como constante del sistema."},
+        {id:"c3", step:"Ruta", cap:"<b>Nueva orden, paso 2.</b> Origen y destino salen del catálogo de sedes con coordenada verificada en campo: escribir direcciones a mano es la principal fuente de entregas fallidas. La tarifa se calcula en vivo, con el recargo visible antes de confirmar."},
+        {id:"c4", step:"Guía", cap:"<b>Confirmación.</b> La orden entra a despacho de inmediato y el cliente obtiene la etiqueta con el código que el mensajero escaneará en origen. Ese código es el que amarra toda la trazabilidad posterior."},
+        {id:"c5", step:"Seguimiento", cap:"<b>Seguimiento en vivo.</b> Posición, temperatura y trazabilidad en una sola pantalla. La línea de tiempo muestra la evidencia de cada evento —quién, cuándo, dónde—, que es exactamente lo que se exporta ante una auditoría."}
+      ]
+    },
+    ops: {
+      label: "Panel de operaciones",
+      screens: [
+        {id:"o1", step:"Despacho", cap:"<b>Bandeja de despacho.</b> Optimizada para pantalla grande y jornada completa. Ordena por criticidad y holgura, no por hora de creación: lo que está por vencer sube solo. La sugerencia de mensajero ya viene calculada en la fila."},
+        {id:"o2", step:"Asignación", cap:"<b>Asignación asistida.</b> Primero el filtro duro —de 28 mensajeros, 3 pueden hacer el servicio—, luego el puntaje ordena entre ellos con el desglose visible. El operador decide; el sistema explica. Anular la sugerencia exige un motivo, y esos motivos calibran los pesos."},
+        {id:"o3", step:"Flota", cap:"<b>Consola de flota.</b> Mapa y alertas lado a lado, con severidad codificada en color y en franja para que se lea de un vistazo desde lejos. Las alertas llevan la acción incorporada: llamar o abrir novedad sin salir de la consola."}
+      ]
+    },
+    men: {
+      label: "App del mensajero",
+      screens: [
+        {id:"m1", step:"Tareas", cap:"<b>Tareas del día.</b> Botones grandes para usar con guantes, en moto y a contraluz. El color del borde codifica el tipo de carga. La franja de sin conexión es informativa, no un bloqueo: la app funciona igual y muestra cuánto falta por sincronizar."},
+        {id:"m2", step:"Recolección", cap:"<b>Recolección.</b> Dos pasos y ninguno opcional: escaneo del código —sin él no hay recolección posible— y lectura de temperatura con foto del indicador. El paso térmico solo aparece para paquetes que lo exigen."},
+        {id:"m3", step:"Custodia", cap:"<b>Custodia confirmada.</b> Resumen de lo que quedó registrado, incluida la ubicación sellada y su precisión. Todo se guardó sin conexión: la cola de sincronización se muestra explícitamente para que el mensajero sepa que su trabajo no se perdió."},
+        {id:"m4", step:"Entrega", cap:"<b>Prueba de entrega.</b> Cuatro pasos encadenados: escaneo, documento del receptor, fotografía y firma. Cada uno queda marcado a medida que se cumple. El aviso de autorización de datos aparece en el momento de la captura, no enterrado en unos términos."},
+        {id:"m5", step:"Cierre", cap:"<b>Cierre.</b> La entrega se cierra con toda la evidencia enumerada y la validación de que la coordenada corresponde al destino. La sincronización corre en segundo plano: el mensajero ya puede seguir con la siguiente tarea."}
+      ]
+    }
+  };
+
+  var order = [], index = {}, current = 0;
+  Object.keys(FLOWS).forEach(function(k){
+    FLOWS[k].screens.forEach(function(s){
+      s.flow = k;
+      index[s.id] = order.length;
+      order.push(s);
+    });
+  });
+
+  var stepsEl = document.getElementById('steps');
+  var capEl = document.getElementById('caption');
+  var prevEl = document.getElementById('prev');
+  var nextEl = document.getElementById('next');
+
+  function render(){
+    var cur = order[current];
+    document.querySelectorAll('.screen').forEach(function(s){ s.hidden = (s.id !== cur.id); });
+    document.querySelectorAll('.flowbtn').forEach(function(b){
+      b.setAttribute('aria-current', b.dataset.flow === cur.flow ? 'true' : 'false');
+    });
+    capEl.innerHTML = cur.cap;
+
+    var list = FLOWS[cur.flow].screens;
+    stepsEl.innerHTML = '';
+    list.forEach(function(s, i){
+      if (i) {
+        var sep = document.createElement('span');
+        sep.className = 'stepsep';
+        sep.textContent = '›';
+        stepsEl.appendChild(sep);
+      }
+      var b = document.createElement('button');
+      b.className = 'step';
+      b.textContent = (i + 1) + '. ' + s.step;
+      b.setAttribute('aria-current', s.id === cur.id ? 'true' : 'false');
+      b.addEventListener('click', function(){ go(s.id); });
+      stepsEl.appendChild(b);
+    });
+
+    prevEl.disabled = current === 0;
+    nextEl.disabled = current === order.length - 1;
+    window.scrollTo({top:0, behavior:'auto'});
+  }
+
+  function go(id){
+    if (index[id] === undefined) return;
+    current = index[id];
+    render();
+  }
+
+  document.addEventListener('click', function(e){
+    var t = e.target.closest('[data-goto]');
+    if (t) { go(t.dataset.goto); return; }
+    var f = e.target.closest('[data-flow]');
+    if (f) { go(FLOWS[f.dataset.flow].screens[0].id); }
+  });
+
+  prevEl.addEventListener('click', function(){ if (current > 0) { current--; render(); } });
+  nextEl.addEventListener('click', function(){ if (current < order.length - 1) { current++; render(); } });
+
+  document.addEventListener('keydown', function(e){
+    if (e.target.closest('input, textarea')) return;
+    if (e.key === 'ArrowLeft' && current > 0) { current--; render(); }
+    if (e.key === 'ArrowRight' && current < order.length - 1) { current++; render(); }
+  });
+
+  render();
+})();
+</script>

@@ -60,7 +60,7 @@ class MotorAsignacion
         $this->precargar($paquete);
 
         $origen  = $paquete->orden->origen;
-        $zonaId  = $paquete->orden->destino->zona_id;
+        $zonaId  = $paquete->orden->zonaDestino()?->id;
         $radio   = (float) Parametro::obtener('asignacion.radio_km', config('ltp.asignacion.radio_busqueda_km', 15));
 
         $consulta = Mensajero::query()
@@ -95,7 +95,7 @@ class MotorAsignacion
     {
         $this->precargar($paquete);
 
-        $zonaId  = $paquete->orden->destino?->zona_id;
+        $zonaId  = $paquete->orden->zonaDestino()?->id;
         $enTurno = Mensajero::disponibles()->with('vehiculo', 'user')->get();
 
         $motivos = [];
@@ -158,7 +158,7 @@ class MotorAsignacion
             return 'Sin certificación de control especial';
         }
 
-        if ($m->capacidadDisponibleKg() < $paquete->peso_kg) {
+        if ($m->capacidadDisponibleKg() < $paquete->pesoParaCapacidad()) {
             return 'Sin capacidad disponible';
         }
 
@@ -196,7 +196,7 @@ class MotorAsignacion
      */
     private function precargar(Paquete $paquete): void
     {
-        $paquete->loadMissing(['orden.origen', 'orden.destino']);
+        $paquete->loadMissing(['orden.origen', 'orden.destino.zona', 'orden.destinatario.zona']);
     }
 
     public function evaluar(Mensajero $mensajero, Paquete $paquete): array
@@ -293,7 +293,7 @@ class MotorAsignacion
 
         $activos = $mensajero->paquetes()
             ->enCurso()
-            ->with('orden.destino')
+            ->with('orden.destino', 'orden.destinatario')
             ->get()
             ->map(fn (Paquete $p) => $p->orden->destino)
             ->filter(fn ($s) => $s?->tieneCoordenada());
@@ -329,7 +329,7 @@ class MotorAsignacion
 
             if ($anterior) {
                 $anterior->update(['liberada_en' => now()]);
-                $anterior->mensajero->decrement('carga_actual_kg', $paquete->peso_kg);
+                $anterior->mensajero->decrement('carga_actual_kg', $paquete->pesoParaCapacidad());
             }
 
             $asignacion = Asignacion::create([
@@ -347,7 +347,7 @@ class MotorAsignacion
             $paquete->mensajero_id = $mensajero->id;
             $paquete->save();
 
-            $mensajero->increment('carga_actual_kg', $paquete->peso_kg);
+            $mensajero->increment('carga_actual_kg', $paquete->pesoParaCapacidad());
 
             $this->registrador->registrar($paquete, EstadoPaquete::Asignado, [
                 'actor' => $operador,

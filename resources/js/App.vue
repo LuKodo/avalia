@@ -69,17 +69,26 @@ const secciones = computed(() => {
         return [{
             titulo: 'Mi jornada',
             items: [
+                { a: '/jornada', sigla: 'MJ', txt: 'Mi jornada' },
                 { a: '/campo', sigla: 'MT', txt: 'Mis tareas' },
                 { a: '/rastreo', sigla: 'RA', txt: 'Buscar envío' },
             ],
         }]
     }
 
-    if (sesion.tiene('cliente')) {
+    /*
+     * `cliente_radicador` ve lo mismo que `cliente`: radica y consulta. La
+     * diferencia es que no puede cancelar, y eso se decide en el servidor —el
+     * middleware de la ruta—, no escondiendo un botón. Un menú distinto solo
+     * serviría para que el botón que igual no funciona no estorbe; el control
+     * de verdad está en la ruta.
+     */
+    if (sesion.tiene('cliente', 'cliente_radicador')) {
         return [{
             titulo: 'Mis envíos',
             items: [
                 { a: '/radicar', sigla: 'RD', txt: 'Radicar envío' },
+                { a: '/radicar/lote', sigla: 'RM', txt: 'Radicación masiva' },
                 { a: '/solicitudes', sigla: 'MS', txt: 'Mis solicitudes' },
                 { a: '/puntos', sigla: 'PP', txt: 'Puntos pactados' },
                 { a: '/rastreo', sigla: 'RA', txt: 'Rastreo y soportes' },
@@ -97,6 +106,7 @@ const secciones = computed(() => {
                 { a: '/mapa', sigla: 'MP', txt: 'Mapa de flota' },
                 { a: '/puntos', sigla: 'PP', txt: 'Puntos pactados' },
                 { a: '/radicar', sigla: 'RD', txt: 'Radicar envío' },
+                { a: '/radicar/lote', sigla: 'RM', txt: 'Radicación masiva' },
                 { a: '/telemetria', sigla: 'CF', txt: 'Cadena de frío' },
             ],
         },
@@ -113,6 +123,7 @@ const secciones = computed(() => {
             titulo: 'Administración',
             items: [
                 { a: '/admin', sigla: 'PA', txt: 'Panel de control' },
+                { a: '/admin/informes', sigla: 'IN', txt: 'Informes' },
                 { a: '/admin/usuarios', sigla: 'US', txt: 'Usuarios' },
                 { a: '/admin/clientes', sigla: 'CL', txt: 'Clientes y sedes' },
                 { a: '/admin/flota', sigla: 'FL', txt: 'Flota' },

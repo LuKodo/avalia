@@ -91,7 +91,19 @@ class Orden extends Model
      */
     public function puntoDestino(): Sede|Destinatario|null
     {
-        return $this->destino ?? $this->destinatario;
+        /*
+         * `loadMissing` y no acceso directo: la aplicacion corre con la carga
+         * perezosa prohibida, asi que una orden traida con `with('destino')`
+         * pero sin `destinatario` reventaba aqui en vez de responder. Cargar lo
+         * que falta —solo lo que falta, y solo la relacion que esta fila usa—
+         * deja que cualquier consulta llame a este metodo sin tener que saber
+         * de antemano cual de las dos modalidades trae cada orden.
+         */
+        $relacion = $this->sede_destino_id !== null ? 'destino' : 'destinatario';
+
+        $this->loadMissing($relacion);
+
+        return $this->getRelationValue($relacion);
     }
 
     /** ¿Va a domicilio de una persona en vez de a una sede? */
@@ -223,16 +235,120 @@ class Orden extends Model
      * vehículo que la mueve es el mismo: no se cobra por el promedio de la carga,
      * se cobra por lo que la carga obliga a usar.
      */
+    /**
+     * Cómo se llama el destino, venga de donde venga.
+     *
+     * Existe para que nadie tenga que preguntar «sede o destinatario» cada vez
+     * que quiere escribir a dónde va un envío. Lo preguntan la etiqueta, el
+     * correo, la app de campo y el portal; si cada uno lo resolviera por su
+     * cuenta, uno se olvidaría.
+     */
+    public function nombreDestino(): string
+    {
+        return $this->puntoDestino()?->nombre ?? '—';
+    }
+
+    /**
+     * La coordenada del destino, de la sede o del destinatario.
+     *
+     * Sin esto, una entrega a domicilio no se podría validar: la comprobación
+     * de cercanía miraba la sede, y en un domicilio no hay sede. Devuelve nulo
+     * cuando no hay coordenada —una dirección escrita sin marcar en el mapa— y
+     * la entrega sigue permitiéndose: no tener con qué comparar no es motivo
+     * para bloquear a alguien que ya está en la puerta.
+     *
+     * @return array{lat: float, lon: float}|null
+     */
+    public function coordenadaDestino(): ?array
+    {
+        $punto = $this->puntoDestino();
+
+        return $punto?->tieneCoordenada()
+            ? ['lat' => (float) $punto->latitud, 'lon' => (float) $punto->longitud]
+            : null;
+    }
+
+    /**
+     * Recargo por empaque, como fracción de la base.
+     *
+     * Vive en los parámetros y no en el código porque es un precio: cambia sin
+     * que cambie el software, y quien lo decide no es quien despliega. Por
+     * omisión cero —un recargo que nadie fijó no se cobra—, así que hasta que
+     * se configure, los pañales cuestan lo mismo que una caja.
+     */
+    private function recargoDeEmpaque(): float
+    {
+        return (float) $this->paquetes
+            ->map(fn (Paquete $p) => (float) \App\Models\Parametro::obtener(
+                ($p->empaque ?? \App\Enums\TipoEmpaque::Caja)->claveRecargo(),
+                0
+            ))
+            ->max() ?: 0.0;
+    }
+
+    /**
+     * La zona del destino, sea sede o domicilio.
+     *
+     * Se saco de `calcularTarifa()` porque la asignacion necesita exactamente
+     * lo mismo: el motor descartaba mensajeros leyendo `destino->zona_id`, y en
+     * una guia domiciliaria `destino` es nulo —la bandeja de despacho se caia
+     * entera por eso—. Un solo lugar que responda «de que zona es este envio»
+     * evita que la proxima modalidad de destino repita el error en otro sitio.
+     */
+    public function zonaDestino(): ?Zona
+    {
+        $punto = $this->puntoDestino();
+
+        return $punto?->zona
+            ?? Zona::where('ciudad', $punto?->ciudad)->where('activo', true)->first();
+    }
+
+    /**
+     * Recargo por destino rural.
+     *
+     * Llevar a un corregimiento cuesta más —trocha, tiempo, a veces otro
+     * vehículo— y eso lo absorbía Avalia sin verlo. Se cobra sobre la misma
+     * base que los demás recargos, para que la factura se explique sumando
+     * porcentajes y no persiguiendo fórmulas distintas por concepto.
+     *
+     * Por omisión cero: hasta que alguien fije el número en Parámetros, un
+     * destino rural cuesta lo mismo. Un recargo que nadie decidió no se cobra.
+     */
+    private function recargoRural(): float
+    {
+        return $this->puntoDestino()?->rural
+            ? (float) \App\Models\Parametro::obtener('tarifa.recargo_rural', 0)
+            : 0.0;
+    }
+
     public function calcularTarifa(): self
     {
-        $this->loadMissing('destino.zona', 'paquetes');
+        $this->loadMissing('destino.zona', 'destinatario.zona', 'paquetes');
 
-        $zona = $this->destino?->zona;
+        /*
+         * Sin zona la tarifa queda en cero y el operador lo ve: mejor un cero
+         * visible que un precio inventado.
+         */
+        $zona = $this->zonaDestino();
 
         $refrigerado = $this->paquetes->contains(fn (Paquete $p) => $p->exigeCadenaFrio());
 
         $base    = $zona?->tarifaPara($refrigerado) ?? 0.0;
-        $recargo = $base * $this->criticidad->recargo();
+
+        /*
+         * Dos recargos que se suman sobre la misma base: la urgencia y el
+         * empaque.
+         *
+         * El de empaque se toma del MAYOR de los paquetes, no del promedio ni
+         * de la suma, por la misma razón que el refrigerado: lo que encarece
+         * el viaje es el que más obliga. Una caja de pañales no deja de ocupar
+         * su volumen porque viaje junto a una bolsa pequeña.
+         */
+        $recargo = $base * (
+            $this->criticidad->recargo()
+            + $this->recargoDeEmpaque()
+            + $this->recargoRural()
+        );
 
         $this->forceFill([
             'tarifa_base' => round($base, 2),

@@ -54,6 +54,8 @@ class EnviarSoporteACliente implements ShouldQueue
         $evidencia = Evidencia::with([
             'paquete.orden.cliente',
             'paquete.orden.referencias',
+            // Las de la caja, que son las que mandan cuando las hay.
+            'paquete.referencias',
             // La sede de origen trae el centro de costo que viaja con el envío.
             'paquete.orden.origen',
             // Las cajas hermanas hacen falta para saber si esta es la primera,
@@ -119,7 +121,53 @@ class EnviarSoporteACliente implements ShouldQueue
         $r = $servicio->subir($contenido, $nombre, $evidencia->mime ?: 'image/jpeg', $campos);
 
         if ($r['ok']) {
-            $this->anotarExito($evidencia, $nombre, $registrador);
+            /*
+             * No basta con que diga que sí: hay que mirar.
+             *
+             * Esta API devolvió 201 tres veces seguidas subiendo a un bucket que
+             * no existía. Si nos quedáramos en el código de respuesta, el
+             * sistema seguiría afirmando que el cliente tiene unos soportes que
+             * nunca recibió, y nadie se enteraría hasta que alguien los pidiera.
+             */
+            $v = $servicio->confirmar($nombre);
+
+            if (! $v['confirmado']) {
+                $this->anotarFallo($evidencia, $v['motivo'] ?? 'No se pudo confirmar el archivo en el bucket.');
+
+                Log::warning('Subida aceptada pero no confirmada en el bucket', [
+                    'evidencia' => $evidencia->id,
+                    'nombre'    => $nombre,
+                    'respuesta_subida' => $r['cuerpo'],
+                    'motivo'    => $v['motivo'],
+                ]);
+
+                /*
+                 * No se reintenta. Un bucket inexistente o mal nombrado no se
+                 * arregla insistiendo; se arregla cambiando la configuración o
+                 * hablando con el cliente. Queda visible en la pantalla de
+                 * operación con el motivo, que es donde alguien puede actuar.
+                 */
+                return;
+            }
+
+            /*
+             * Se guarda lo que contestó su servidor, no solo que dijo que sí.
+             *
+             * Un 201 significa «recibido», no «guardado donde usted cree». Ya
+             * pasó: la subida respondió 201 y el archivo no apareció del otro
+             * lado. Sin el cuerpo de la respuesta no hay forma de saber si
+             * devolvió una ruta distinta, un aviso, o nada. Con él se puede
+             * preguntar al cliente enseñándole lo que dijo su propia API.
+             */
+            Log::info('Soporte enviado al repositorio del cliente', [
+                'evidencia' => $evidencia->id,
+                'nombre'    => $nombre,
+                'campos'    => $campos,
+                'estado'    => $r['estado'],
+                'respuesta' => $r['cuerpo'],
+            ]);
+
+            $this->anotarExito($evidencia, $nombre, $registrador, $r['cuerpo']);
 
             return;
         }
@@ -174,31 +222,49 @@ class EnviarSoporteACliente implements ShouldQueue
      */
     private function nombreDeArchivo(Evidencia $evidencia): ?string
     {
-        $orden = $evidencia->paquete->orden;
-        $referencia = $orden->referencias->first()?->valor;
+        $referencias = $evidencia->paquete->referenciasEfectivas();
 
-        if (! $referencia) {
+        if ($referencias->isEmpty()) {
             return null;
         }
 
-        $prefijo = (string) ($orden->cliente->integracion_config['prefijo_referencia'] ?? '');
+        /*
+         * Una sola referencia: el nombre es esa referencia, sin su prefijo.
+         *
+         * Es el caso habitual y el que el cliente espera ver en su repositorio.
+         */
+        if ($referencias->count() === 1) {
+            return $this->sinPrefijo(
+                (string) $referencias->first()->valor,
+                $evidencia->paquete->orden->cliente
+            ).$this->extension($evidencia->mime);
+        }
+
+        /*
+         * Varias: el nombre es el código de la caja.
+         *
+         * Una caja puede llevar diez dispensaciones y el recibido es UNO —se
+         * firma la caja, no cada documento—. Esa única foto no puede llamarse
+         * como las diez a la vez, y elegir una sería mentir sobre las otras
+         * nueve. El código del paquete nombra exactamente lo que la foto
+         * retrata: esa caja.
+         *
+         * El vínculo con cada SSC no se pierde: va en el registro del
+         * documento, que apunta a esta misma URL tantas veces como
+         * dispensaciones lleve la caja.
+         */
+        return $evidencia->paquete->codigo.$this->extension($evidencia->mime);
+    }
+
+    /** Recorta el prefijo que ese cliente usa en sus referencias. */
+    private function sinPrefijo(string $referencia, $cliente): string
+    {
+        $prefijo = (string) ($cliente->integracion_config['prefijo_referencia'] ?? '');
         $base = trim($referencia);
 
-        if ($prefijo !== '' && str_starts_with(mb_strtolower($base), mb_strtolower($prefijo))) {
-            $base = mb_substr($base, mb_strlen($prefijo));
-        }
-
-        $paquetes = $orden->relationLoaded('paquetes')
-            ? $orden->paquetes->sortBy('id')->pluck('id')->values()->all()
-            : $orden->paquetes()->orderBy('id')->pluck('id')->all();
-
-        $posicion = array_search($evidencia->paquete_id, $paquetes, true);
-
-        if ($posicion !== false && $posicion > 0) {
-            $base .= '-'.str_pad((string) ($posicion + 1), 2, '0', STR_PAD_LEFT);
-        }
-
-        return $base.$this->extension($evidencia->mime);
+        return $prefijo !== '' && str_starts_with(mb_strtolower($base), mb_strtolower($prefijo))
+            ? mb_substr($base, mb_strlen($prefijo))
+            : $base;
     }
 
     private function extension(?string $mime): string
@@ -224,7 +290,7 @@ class EnviarSoporteACliente implements ShouldQueue
      * cosas es exactamente cómo se construye un panel que dice que todo salió
      * bien mientras nada salió.
      */
-    private function anotarExito(Evidencia $evidencia, string $nombre, RegistradorEventos $registrador): void
+    private function anotarExito(Evidencia $evidencia, string $nombre, RegistradorEventos $registrador, mixed $respuesta = null): void
     {
         $evidencia->forceFill([
             'entregada_al_cliente_en' => now(),
@@ -244,6 +310,9 @@ class EnviarSoporteACliente implements ShouldQueue
                 'resultado' => 'entregado',
                 'evidencia' => $evidencia->tipo,
                 'nombre_externo' => $nombre,
+                // Lo que contestó su API, tal cual. Es la única prueba de qué
+                // dijo el día que alguien discuta si el archivo llegó.
+                'respuesta' => is_array($respuesta) ? $respuesta : (string) $respuesta,
             ]);
         } catch (\Throwable $e) {
             // La anotación es importante pero no puede tumbar un envío que ya

@@ -43,10 +43,12 @@ class SoporteEntrega
     public function armar(Orden $orden, bool $incluirDatosReceptor = false, bool $verificarCadena = false): array
     {
         $orden->loadMissing([
-            'cliente', 'origen', 'destino', 'referencias',
+            'cliente', 'origen', 'destino', 'destinatario', 'referencias',
             'paquetes.entrega.firma', 'paquetes.entrega.fotoReceptor',
+            'paquetes.entregas.reabiertaPor',
             'paquetes.mensajero.user', 'paquetes.mensajero.vehiculo',
             'paquetes.temperaturas', 'paquetes.novedades', 'paquetes.evidencias',
+            'paquetes.referencias',
             'paquetes.eventos',
         ]);
 
@@ -78,7 +80,7 @@ class SoporteEntrega
             ],
 
             'origen'  => $this->sede($orden->origen),
-            'destino' => $this->sede($orden->destino),
+            'destino' => $this->sede($orden->puntoDestino()),
 
             'paquetes' => $orden->paquetes->map(
                 fn (Paquete $p) => $this->paquete($p, $incluirDatosReceptor, $total)
@@ -109,6 +111,11 @@ class SoporteEntrega
         $entrega = $paquete->entrega;
 
         return [
+            // El identificador interno. Lo necesita la pantalla para pedir
+            // acciones sobre este paquete —reabrir una entrega, por ejemplo—,
+            // que es lo unico para lo que sirve: identificar al envio de cara
+            // a fuera es trabajo del codigo de etiqueta.
+            'paquete_id'  => $paquete->id,
             'codigo'      => $paquete->codigo,
             'consecutivo' => "{$paquete->consecutivo} de {$totalPaquetes}",
             'tipo'        => $paquete->tipo->value,
@@ -118,6 +125,18 @@ class SoporteEntrega
             'descripcion' => $paquete->descripcion,
             'lote'        => $paquete->lote,
             'peso_kg'     => $paquete->peso_kg,
+
+            /*
+             * Las referencias de ESTA caja.
+             *
+             * Importa cuando una guía lleva varias: si una se devuelve y las
+             * demás se entregan, el cliente necesita saber exactamente qué
+             * dispensaciones llegaron. Con la lista colgando solo del envío esa
+             * pregunta no tenía respuesta.
+             */
+            'referencias' => $paquete->referenciasEfectivas()
+                ->map(fn ($r) => ['tipo' => $r->tipo->etiqueta(), 'valor' => $r->valor])
+                ->values()->all(),
             'dimensiones_cm' => array_filter([
                 'largo' => $paquete->largo_cm,
                 'ancho' => $paquete->ancho_cm,
@@ -183,6 +202,26 @@ class SoporteEntrega
                 'hora'  => $paquete->recolectado_en->format('H:i:s'),
                 'iso'   => $paquete->recolectado_en->toIso8601String(),
             ],
+
+            /*
+             * Entregas reemplazadas: las que se reabrieron.
+             *
+             * Van en el soporte y no escondidas en la auditoría. Si un envío
+             * se cerró, se reabrió y se volvió a cerrar, el cliente tiene
+             * derecho a saberlo —y a saber por qué—: ocultarlo convertiría el
+             * soporte en un documento que cuenta una versión más limpia que la
+             * verdad, que es exactamente lo que un soporte no puede ser.
+             *
+             * Normalmente esta lista va vacía y la interfaz no muestra nada.
+             */
+            'reaperturas' => $paquete->entregas
+                ->where('vigente', false)
+                ->map(fn ($e) => [
+                    'entregada_en'  => $e->entregada_en?->toIso8601String(),
+                    'reabierta_en'  => $e->reabierta_en?->toIso8601String(),
+                    'reabierta_por' => $e->reabiertaPor?->nombre,
+                    'motivo'        => $e->motivo_reapertura,
+                ])->values()->all(),
 
             // El bloque que el cliente vino a buscar.
             'entrega' => $entrega === null ? null : [
@@ -294,7 +333,9 @@ class SoporteEntrega
             'nombre'    => $sede->nombre,
             'direccion' => $sede->direccionCompleta(),
             'ciudad'    => $sede->ciudad,
-            'contacto'  => $sede->contacto_nombre,
+            // Un domicilio no tiene «contacto de sede»: el contacto es la
+            // persona misma, y su nombre es lo que debe salir en el soporte.
+            'contacto'  => $sede->contacto_nombre ?? $sede->nombre,
         ];
     }
 

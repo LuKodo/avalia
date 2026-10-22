@@ -54,6 +54,30 @@ class CambioDeEstado extends Mailable implements ShouldQueue
                 'guia'        => $orden->numero_guia,
                 'cliente'     => $orden->cliente->razon_social,
                 'estado'      => $this->paquete->estado->etiqueta(),
+
+                /*
+                 * Si el aviso es por una novedad, el estado no basta.
+                 *
+                 * «Con novedad» no le dice al cliente si nadie recibió, si la
+                 * dirección estaba mal o si la farmacia había cerrado —y son
+                 * tres llamadas distintas las que tiene que hacer—. El motivo
+                 * va en el propio evento; aquí solo se saca a la superficie.
+                 */
+                'novedad'     => $this->evento->tipo_evento !== 'novedad' ? null : [
+                    'tipo' => \App\Enums\TipoNovedad::tryFrom(
+                        (string) ($this->evento->datos['tipo_novedad'] ?? '')
+                    )?->etiqueta(),
+                    'descripcion' => $this->evento->datos['descripcion'] ?? null,
+
+                    /*
+                     * Que el envío vuelve al centro es lo primero que el cliente
+                     * necesita saber: condiciona lo que él hace a continuación
+                     * —reprogramar con el paciente, o pedir la devolución—.
+                     */
+                    'retorna' => \App\Enums\TipoNovedad::tryFrom(
+                        (string) ($this->evento->datos['tipo_novedad'] ?? '')
+                    )?->exigeRetornoACentro() ?? false,
+                ],
                 'ocurrido'    => $this->evento->ocurrido_en,
                 'origen'      => $orden->origen?->nombre,
                 'destino'     => $orden->destino?->nombre,

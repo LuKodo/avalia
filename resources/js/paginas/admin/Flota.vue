@@ -92,6 +92,35 @@ function abrirNuevo() {
     if (vista.value === 'sondas') Object.assign(formSonda, vacioSonda())
 }
 
+/**
+ * Abre el formulario sobre un mensajero que ya existe.
+ *
+ * El vehiculo se asignaba al crear la cuenta y no habia forma de cambiarlo
+ * despues: un mensajero que estrenaba moto se quedaba con la placa anterior, y
+ * el motor de asignacion decide con ese dato. Lo que no se puede cambiar aqui
+ * es el correo ni el documento —son la identidad de la cuenta, y cambiarlos de
+ * paso dentro de «editar flota» es como se pierden los accesos—.
+ */
+function editarMensajero(m) {
+    errores.value = {}
+    exito.value = null
+    secreto.value = null
+    claveTemporal.value = null
+    editando.value = m.id
+
+    Object.assign(formMensajero, {
+        nombre: m.nombre,
+        email: '',
+        documento: '',
+        telefono: m.telefono ?? '',
+        vehiculo_id: m.vehiculo_id ?? null,
+        certificado_controlados: !!m.certificado,
+        certificado_vence: m.certificado_vence ?? '',
+        zonas_habilitadas: [...(m.zonas_habilitadas ?? [])],
+        en_turno: !!m.en_turno,
+    })
+}
+
 function cancelar() {
     editando.value = null
     errores.value = {}
@@ -125,13 +154,21 @@ async function guardar() {
             exito.value = `Vehículo ${r.placa} creado · ${r.tipo_etiqueta}`
                 + (r.al_dia ? '' : ` — bloqueado: ${r.vencidos.join(', ')}`)
         } else if (vista.value === 'mensajeros') {
-            const r = await api.crearMensajero({
+            const cuerpo = {
                 ...formMensajero,
                 certificado_vence: formMensajero.certificado_vence || null,
                 zonas_habilitadas: formMensajero.zonas_habilitadas.length ? formMensajero.zonas_habilitadas : null,
-            })
-            exito.value = `Mensajero ${r.mensajero.nombre} creado con código ${r.mensajero.codigo}`
-            claveTemporal.value = r
+            }
+
+            if (editando.value === 'nuevo') {
+                const r = await api.crearMensajero(cuerpo)
+                exito.value = `Mensajero ${r.mensajero.nombre} creado con código ${r.mensajero.codigo}`
+                claveTemporal.value = r
+            } else {
+                const r = await api.actualizarMensajero(editando.value, cuerpo)
+                exito.value = `${r.nombre} actualizado`
+                    + (r.vehiculo ? ` · vehículo ${r.vehiculo}` : ' · sin vehículo')
+            }
         } else {
             const r = await api.crearDispositivo({
                 ...formSonda,
@@ -356,14 +393,19 @@ const fecha = (f) => f ?? '—'
             <!-- =============================================== MENSAJEROS -->
             <template v-else-if="vista === 'mensajeros'">
                 <SeccionForma
-                    v-if="editando" numero="+" titulo="Nuevo mensajero"
-                    descripcion="Se crea la cuenta de acceso junto con el perfil: un mensajero sin usuario no puede entrar a la aplicación de campo, y separarlo en dos pasos solo produce mensajeros a medio crear."
+                    v-if="editando"
+                    :numero="editando === 'nuevo' ? '+' : '✎'"
+                    :titulo="editando === 'nuevo' ? 'Nuevo mensajero' : `Editar a ${formMensajero.nombre}`"
+                    :descripcion="editando === 'nuevo'
+                        ? 'Se crea la cuenta de acceso junto con el perfil: un mensajero sin usuario no puede entrar a la aplicación de campo, y separarlo en dos pasos solo produce mensajeros a medio crear.'
+                        : 'El correo y el documento no se tocan desde aquí: son la identidad de la cuenta. Lo que sí cambia con el tiempo es el vehículo, la certificación y las zonas.'"
                 >
                     <Campo etiqueta="Nombre completo" obligatorio :error="err('nombre')" v-slot="{ id }">
                         <input :id="id" v-model="formMensajero.nombre" class="control" type="text" placeholder="Andrés Quintero">
                     </Campo>
 
                     <Campo
+                        v-if="editando === 'nuevo'"
                         etiqueta="Correo de acceso" obligatorio :error="err('email')"
                         ayuda="Con este correo entrará a la aplicación de campo."
                         v-slot="{ id }"
@@ -371,7 +413,7 @@ const fecha = (f) => f ?? '—'
                         <input :id="id" v-model="formMensajero.email" class="control" type="email" placeholder="nombre.apellido@ltp.local">
                     </Campo>
 
-                    <Campo etiqueta="Documento" :error="err('documento')" v-slot="{ id }">
+                    <Campo v-if="editando === 'nuevo'" etiqueta="Documento" :error="err('documento')" v-slot="{ id }">
                         <input :id="id" v-model="formMensajero.documento" class="control control--num" type="text">
                     </Campo>
 
@@ -421,7 +463,8 @@ const fecha = (f) => f ?? '—'
                         <div class="acciones-forma">
                             <button type="button" class="boton boton--secundario" @click="cancelar">Cancelar</button>
                             <button type="button" class="boton boton--primario" :disabled="guardando" @click="guardar">
-                                {{ guardando ? 'Creando…' : 'Crear mensajero y su cuenta' }}
+                                <template v-if="guardando">{{ editando === 'nuevo' ? 'Creando…' : 'Guardando…' }}</template>
+                                <template v-else>{{ editando === 'nuevo' ? 'Crear mensajero y su cuenta' : 'Guardar cambios' }}</template>
                             </button>
                         </div>
                     </template>
@@ -439,6 +482,7 @@ const fecha = (f) => f ?? '—'
                             <tr>
                                 <th>Código</th><th>Nombre</th><th>Vehículo</th><th>Frío</th><th>Controlados</th>
                                 <th>Turno</th><th>Señal</th><th>Batería</th><th>Carga</th><th>Activos</th><th>Cumplimiento</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -471,6 +515,11 @@ const fecha = (f) => f ?? '—'
                                 <td class="num">{{ decimal(m.carga_kg, 1) }} kg</td>
                                 <td class="num">{{ m.activos }}</td>
                                 <td class="num">{{ decimal(m.cumplimiento, 1) }}%</td>
+                                <td class="celda-acciones">
+                                    <button type="button" class="boton boton--secundario boton--compacto" @click="editarMensajero(m)">
+                                        Editar
+                                    </button>
+                                </td>
                             </tr>
                         </tbody>
                     </table>

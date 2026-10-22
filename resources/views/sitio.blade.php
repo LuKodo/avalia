@@ -336,13 +336,6 @@ section { padding: 5rem 0; }
 .lamina figcaption { padding: .9rem 1.1rem; }
 .lamina h3 { margin-bottom: .2rem; font-size: .98rem; }
 .lamina p { margin: 0; font-size: .84rem; color: var(--tinta-2); line-height: 1.55; }
-.lamina-marca {
-    display: inline-flex; align-items: center; gap: .3rem; margin-top: .6rem;
-    font-family: var(--mono); font-size: .58rem; letter-spacing: .08em; text-transform: uppercase;
-    color: #7A5A00; background: #FFF4CE; border: 1px solid #E0C36A;
-    border-radius: 4px; padding: .1rem .4rem;
-}
-
 .carrusel-mandos { display: flex; align-items: center; gap: .6rem; margin-top: 1.1rem; }
 .carrusel-btn {
     width: 42px; height: 42px; border-radius: 999px; flex: none;
@@ -356,6 +349,49 @@ section { padding: 5rem 0; }
 .carrusel-punto[aria-current="true"] { background: var(--vivo); width: 22px; }
 
 /* ---------------------------------------------------------------- aliados */
+.flujo {
+  margin: 0;
+  padding: 1.2rem;
+  border-radius: 14px;
+  background: var(--marino);
+  border: 1px solid var(--marino-3);
+}
+
+.flujo svg { width: 100%; height: auto; display: block; }
+
+.perfiles { margin-top: 2rem; }
+
+.perfil {
+  background: var(--papel);
+  border: 1px solid var(--linea);
+  border-radius: 14px;
+  padding: 1.5rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.perfil--ancho { gap: .9rem; }
+.perfil-ic { width: 38px; height: 38px; color: var(--marino-3); margin-bottom: .3rem; }
+.perfil h3 { margin: 0; font-size: 1.02rem; color: var(--tinta); }
+.perfil p { margin: 0; font-size: .9rem; line-height: 1.6; color: var(--tinta-2); }
+
+.cta-clientes { margin-top: 1.4rem; align-items: stretch; }
+
+.lista-ticks { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: .55rem; }
+.lista-ticks li { position: relative; padding-left: 1.6rem; font-size: .9rem; line-height: 1.55; color: var(--tinta-2); }
+.lista-ticks li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .42em;
+  width: .55rem;
+  height: .3rem;
+  border-left: 2px solid var(--marino-3);
+  border-bottom: 2px solid var(--marino-3);
+  transform: rotate(-45deg);
+}
+
 .aliados { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; background: var(--linea); border: 1px solid var(--linea); border-radius: 14px; overflow: hidden; }
 @media (max-width: 900px) { .aliados { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .aliados { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -554,12 +590,21 @@ section { padding: 5rem 0; }
 <!-- ================================================================= cifras -->
 <section class="cifras" style="padding: 0">
   <div class="env">
+    {{--
+      Las cifras salen de la operación, no de un texto escrito a mano: ver
+      PortadaController. Una cifra sin respaldo suficiente no llega hasta aquí,
+      así que este bloque puede traer cuatro, tres o ninguna.
+    --}}
+    @if (!empty($cifras))
     <div class="cifras-int">
-      <div class="cifra"><div class="v"><span class="dato">[00.0 %]</span></div><p class="k">Entregas dentro de la ventana comprometida</p></div>
-      <div class="cifra"><div class="v"><span class="dato">[00.000]</span></div><p class="k">Envíos con cadena de frío al año</p></div>
-      <div class="cifra"><div class="v">100 %</div><p class="k">Entregas con foto y firma del receptor</p></div>
-      <div class="cifra"><div class="v"><span class="dato">[00]</span></div><p class="k">Años transportando producto farmacéutico</p></div>
+      @foreach ($cifras as $c)
+      <div class="cifra">
+        <div class="v">{{ $c['valor'] }}</div>
+        <p class="k">{{ $c['etiqueta'] }}</p>
+      </div>
+      @endforeach
     </div>
+    @endif
   </div>
 </section>
 
@@ -609,7 +654,6 @@ section { padding: 5rem 0; }
           <figcaption>
             <h3>Flota con cava certificada</h3>
             <p>Vehículos habilitados para cadena de frío, con certificado vigente verificado por el sistema antes de cada asignación.</p>
-            <span class="lamina-marca">Ilustración · reemplazar por foto real</span>
           </figcaption>
         </figure>
 
@@ -635,7 +679,6 @@ section { padding: 5rem 0; }
           <figcaption>
             <h3>Monitoreo continuo</h3>
             <p>Las sondas reportan temperatura y posición sin que el mensajero intervenga. Una excursión abre alerta al operador en el momento.</p>
-            <span class="lamina-marca">Ilustración · reemplazar por foto real</span>
           </figcaption>
         </figure>
 
@@ -669,7 +712,6 @@ section { padding: 5rem 0; }
           <figcaption>
             <h3>Centro de distribución</h3>
             <p>Recibimos de varias sedes, consolidamos y redespachamos. Cada traspaso queda documentado como cambio de custodia.</p>
-            <span class="lamina-marca">Ilustración · reemplazar por foto real</span>
           </figcaption>
         </figure>
 
@@ -698,7 +740,6 @@ section { padding: 5rem 0; }
           <figcaption>
             <h3>Entrega al paciente</h3>
             <p>Hasta la puerta del afiliado, con aviso previo, ventana acordada y foto y firma de quien recibe.</p>
-            <span class="lamina-marca">Ilustración · reemplazar por foto real</span>
           </figcaption>
         </figure>
       </div>
@@ -1019,70 +1060,87 @@ section { padding: 5rem 0; }
 </section>
 
 <!-- ================================================== aliados y clientes -->
+{{--
+  Aquí NO van logotipos ni testimonios inventados.
+
+  Un logotipo ajeno en esta página afirma que esa institución es cliente, y una
+  frase entrecomillada con nombre y cargo afirma que esa persona la dijo. Las
+  dos cosas se publican cuando quien aparece lo autoriza por escrito, no antes:
+  es la diferencia entre una referencia comercial y una suplantación, y en el
+  sector salud la segunda cuesta el contrato.
+
+  Mientras tanto, esta sección dice lo mismo sin atribuirle nada a nadie: a qué
+  clase de instituciones se les presta el servicio y qué exige cada una. Cuando
+  haya autorizaciones firmadas, los logotipos entran aquí y este bloque se
+  sustituye.
+--}}
 <section class="sec-gris" id="clientes">
   <div class="env">
     <div class="sec-cab">
-      <p class="rotulo">Clientes y aliados</p>
-      <h2>Quiénes confían su cadena de frío a Avalia</h2>
+      <p class="rotulo">A quién servimos</p>
+      <h2>Operaciones que responden<br>por producto regulado</h2>
       <p class="plomo">
-        Trabajamos con clínicas, EPS, laboratorios y operadores logísticos que responden por
-        producto regulado. Todos ellos pueden auditarnos sin pedirnos nada.
+        Cada una tiene una exigencia distinta, y ninguna admite un «se entregó» sin
+        con qué demostrarlo. Todas pueden auditarnos sin pedirnos nada: el soporte
+        de cada envío se descarga solo.
       </p>
     </div>
 
-    <div class="aliados">
-      <div class="aliado">
-        <svg width="92" height="34" viewBox="0 0 92 34" role="img" aria-label="Logotipo de cliente, marcador"><rect width="92" height="34" rx="5" fill="#EAEEF6"></rect><circle cx="19" cy="17" r="8" fill="#C2CAD9"></circle><rect x="34" y="10" width="44" height="6" rx="3" fill="#C2CAD9"></rect><rect x="34" y="20" width="28" height="5" rx="2.5" fill="#D9E3F1"></rect></svg>
-      </div>
-      <div class="aliado">
-        <svg width="92" height="34" viewBox="0 0 92 34" role="img" aria-label="Logotipo de cliente, marcador"><rect width="92" height="34" rx="5" fill="#EAEEF6"></rect><path d="M14 24 22 9l8 15z" fill="#C2CAD9"></path><rect x="38" y="11" width="40" height="6" rx="3" fill="#C2CAD9"></rect><rect x="38" y="21" width="24" height="5" rx="2.5" fill="#D9E3F1"></rect></svg>
-      </div>
-      <div class="aliado">
-        <svg width="92" height="34" viewBox="0 0 92 34" role="img" aria-label="Logotipo de cliente, marcador"><rect width="92" height="34" rx="5" fill="#EAEEF6"></rect><rect x="12" y="9" width="16" height="16" rx="4" fill="#C2CAD9"></rect><rect x="36" y="10" width="42" height="6" rx="3" fill="#C2CAD9"></rect><rect x="36" y="20" width="32" height="5" rx="2.5" fill="#D9E3F1"></rect></svg>
-      </div>
-      <div class="aliado">
-        <svg width="92" height="34" viewBox="0 0 92 34" role="img" aria-label="Logotipo de cliente, marcador"><rect width="92" height="34" rx="5" fill="#EAEEF6"></rect><path d="M20 8v18M11 17h18" stroke="#C2CAD9" stroke-width="5" stroke-linecap="round"></path><rect x="38" y="11" width="40" height="6" rx="3" fill="#C2CAD9"></rect><rect x="38" y="21" width="20" height="5" rx="2.5" fill="#D9E3F1"></rect></svg>
-      </div>
-      <div class="aliado">
-        <svg width="92" height="34" viewBox="0 0 92 34" role="img" aria-label="Logotipo de cliente, marcador"><rect width="92" height="34" rx="5" fill="#EAEEF6"></rect><circle cx="16" cy="17" r="7" fill="#C2CAD9"></circle><circle cx="28" cy="17" r="7" fill="#D9E3F1"></circle><rect x="44" y="11" width="34" height="6" rx="3" fill="#C2CAD9"></rect><rect x="44" y="21" width="22" height="5" rx="2.5" fill="#D9E3F1"></rect></svg>
-      </div>
-      <div class="aliado">
-        <svg width="92" height="34" viewBox="0 0 92 34" role="img" aria-label="Logotipo de cliente, marcador"><rect width="92" height="34" rx="5" fill="#EAEEF6"></rect><rect x="12" y="12" width="20" height="10" rx="5" fill="#C2CAD9"></rect><rect x="40" y="11" width="38" height="6" rx="3" fill="#C2CAD9"></rect><rect x="40" y="21" width="26" height="5" rx="2.5" fill="#D9E3F1"></rect></svg>
-      </div>
-    </div>
-
-    <p style="margin: 1rem 0 0; font-size: .8rem; color: var(--tinta-3)">
-      <span class="dato">[LOGOTIPOS DE CLIENTES]</span> — reemplazar por las marcas que autoricen aparecer.
-    </p>
-
-    <div class="rejilla-3" style="margin-top: 2.4rem">
-      <article class="testimonio">
-        <blockquote>«<span class="dato">[TESTIMONIO DEL CLIENTE]</span> — una frase concreta sobre qué problema les resolvió el servicio.»</blockquote>
-        <footer>
-          <span class="testimonio-av dato" style="background: #EAEEF6; color: #7A5A00">[ ]</span>
-          <div>
-            <div style="font-size: .88rem; font-weight: 600"><span class="dato">[NOMBRE]</span></div>
-            <div style="font-size: .78rem; color: var(--tinta-3)"><span class="dato">[CARGO · INSTITUCIÓN]</span></div>
-          </div>
-        </footer>
+    <div class="rejilla-3 perfiles">
+      <article class="perfil">
+        <svg class="perfil-ic" viewBox="0 0 48 48" role="img" aria-label="Clínicas y hospitales">
+          <rect x="7" y="13" width="34" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2.2"></rect>
+          <path d="M24 7v6M18 10h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path>
+          <path d="M24 21v10M19 26h10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"></path>
+        </svg>
+        <h3>Clínicas y hospitales</h3>
+        <p>
+          Servicio farmacéutico con horarios de recepción propios y turnos que cambian.
+          El soporte tiene que llegar antes que la llamada preguntando si llegó.
+        </p>
       </article>
 
-      <article class="testimonio">
-        <blockquote>«<span class="dato">[TESTIMONIO DEL CLIENTE]</span> — idealmente con un dato medible: tiempos, reclamaciones, auditorías.»</blockquote>
-        <footer>
-          <span class="testimonio-av dato" style="background: #EAEEF6; color: #7A5A00">[ ]</span>
-          <div>
-            <div style="font-size: .88rem; font-weight: 600"><span class="dato">[NOMBRE]</span></div>
-            <div style="font-size: .78rem; color: var(--tinta-3)"><span class="dato">[CARGO · INSTITUCIÓN]</span></div>
-          </div>
-        </footer>
+      <article class="perfil">
+        <svg class="perfil-ic" viewBox="0 0 48 48" role="img" aria-label="EPS y aseguradoras">
+          <path d="M24 6l15 6v12c0 9-6.4 15.6-15 18-8.6-2.4-15-9-15-18V12z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"></path>
+          <path d="M17 24l5 5 9-10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+        <h3>EPS y aseguradoras</h3>
+        <p>
+          Dispensación domiciliaria a afiliados, por lotes y con tutelas de por medio.
+          Cada entrega queda con quién recibió, dónde y a qué hora.
+        </p>
+      </article>
+
+      <article class="perfil">
+        <svg class="perfil-ic" viewBox="0 0 48 48" role="img" aria-label="Laboratorios y distribuidores">
+          <path d="M20 6h8M22 6v13L13 36a4 4 0 003.5 6h15a4 4 0 003.5-6l-9-17V6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"></path>
+          <path d="M16 30h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path>
+        </svg>
+        <h3>Laboratorios y distribuidores</h3>
+        <p>
+          Producto con rango térmico estrecho y control especial. La temperatura viaja
+          medida, no estimada, y la excursión avisa cuando ocurre.
+        </p>
+      </article>
+    </div>
+
+    <div class="rejilla-2 cta-clientes">
+      <article class="perfil perfil--ancho">
+        <h3>Lo que recibe cualquiera de ellos, en cada envío</h3>
+        <ul class="lista-ticks">
+          <li>Guía con su propia referencia, no solo con la nuestra.</li>
+          <li>Foto del receptor y firma, con hora y coordenada.</li>
+          <li>Curva de temperatura completa cuando el envío es refrigerado.</li>
+          <li>Certificado verificable por un tercero, sin depender de que se lo confirmemos.</li>
+        </ul>
       </article>
 
       <article class="testimonio" style="background: var(--marino-3); border-color: var(--marino-3)">
-        <h3 style="color: #FFFFFF; font-size: 1.1rem">¿Quiere ser el siguiente?</h3>
+        <h3 style="color: #FFFFFF; font-size: 1.1rem">¿Quiere verlo con un envío suyo?</h3>
         <p style="color: var(--marino-ink); font-size: .9rem; margin: .4rem 0 0; line-height: 1.6">
-          Cuéntenos su operación y le mostramos, con un envío real, cómo queda el soporte que
-          recibiría cada vez.
+          Cuéntenos su operación y le mostramos, con un envío real, exactamente cómo queda
+          el soporte que recibiría cada vez.
         </p>
         <a class="btn btn--vidrio btn--sm" href="#cotizar" style="margin-top: 1.2rem; align-self: flex-start">Agendar una demostración</a>
       </article>
@@ -1104,22 +1162,51 @@ section { padding: 5rem 0; }
 
     <div class="rejilla-2" style="align-items: start">
       <div>
-        <div class="codigo">
-<span class="c-not"># Consultar por SU propia referencia</span>
-curl -H <span class="c-cad">"Authorization: Bearer $TOKEN"</span> \
-     <span class="c-cad">"https://api.ltp.com.co/v1/rastreo?q=RAD-2608-00459"</span>
+        {{--
+          Un bloque de curl en una portada le habla al único lector que no
+          decide la compra. Quien lee esta página es jefe de farmacia o de
+          compras: lo que necesita saber es que su sistema puede hablar con el
+          nuestro, no cómo se escribe la cabecera de autorización. El detalle
+          técnico va en la documentación, con el token.
+        --}}
+        <figure class="flujo" aria-labelledby="flujo-tit">
+          <svg viewBox="0 0 520 300" role="img" aria-label="Diagrama: el sistema del cliente radica por API, Avalia transporta con evidencia y devuelve el soporte al mismo sistema">
+            <defs>
+              <marker id="pta" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+                <path d="M0 0l9 4.5L0 9z" fill="#5B9BD5"></path>
+              </marker>
+            </defs>
 
-{
-  <span class="c-cla">"encontrado"</span>: true,
-  <span class="c-cla">"buscado_como"</span>: <span class="c-cad">"referencia"</span>,
-  <span class="c-cla">"envios"</span>: [{
-    <span class="c-cla">"guia_avalia"</span>: <span class="c-cad">"AVL-260825-0001"</span>,
-    <span class="c-cla">"estado"</span>: <span class="c-cad">"entregado"</span>,
-    <span class="c-cla">"entrega"</span>: { <span class="c-cla">"fecha"</span>: <span class="c-cad">"2026-08-25"</span>, <span class="c-cla">"hora"</span>: <span class="c-cad">"10:36:00"</span> }
-  }]
-}</div>
-        <p style="margin: 1rem 0 0; font-size: .8rem; color: var(--tinta-3)">
-          Dirección de ejemplo. La definitiva se entrega con el token de integración.
+            <rect x="14" y="26" width="150" height="80" rx="12" fill="#101A3D" stroke="#2C3A68" stroke-width="1.5"></rect>
+            <text x="89" y="58" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600" font-family="system-ui, sans-serif">Su sistema</text>
+            <text x="89" y="78" text-anchor="middle" fill="#9FB4D8" font-size="11.5" font-family="system-ui, sans-serif">ERP · HIS · hoja de cálculo</text>
+
+            <rect x="185" y="26" width="150" height="80" rx="12" fill="#1B2A5C" stroke="#3A4C8F" stroke-width="1.5"></rect>
+            <text x="260" y="58" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600" font-family="system-ui, sans-serif">Avalia</text>
+            <text x="260" y="78" text-anchor="middle" fill="#9FB4D8" font-size="11.5" font-family="system-ui, sans-serif">radica y despacha</text>
+
+            <rect x="356" y="26" width="150" height="80" rx="12" fill="#101A3D" stroke="#2C3A68" stroke-width="1.5"></rect>
+            <text x="431" y="58" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600" font-family="system-ui, sans-serif">La calle</text>
+            <text x="431" y="78" text-anchor="middle" fill="#9FB4D8" font-size="11.5" font-family="system-ui, sans-serif">frío, foto y firma</text>
+
+            <path d="M168 66h13" stroke="#5B9BD5" stroke-width="2" marker-end="url(#pta)"></path>
+            <path d="M339 66h13" stroke="#5B9BD5" stroke-width="2" marker-end="url(#pta)"></path>
+
+            <path d="M431 112v38H89v34" fill="none" stroke="#5B9BD5" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#pta)"></path>
+            <text x="260" y="143" text-anchor="middle" fill="#5B9BD5" font-size="11.5" font-family="system-ui, sans-serif">el soporte vuelve solo</text>
+
+            <rect x="14" y="196" width="150" height="80" rx="12" fill="#101A3D" stroke="#2C3A68" stroke-width="1.5"></rect>
+            <text x="89" y="228" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="600" font-family="system-ui, sans-serif">Su sistema</text>
+            <text x="89" y="248" text-anchor="middle" fill="#9FB4D8" font-size="11.5" font-family="system-ui, sans-serif">con la prueba adentro</text>
+
+            <text x="300" y="232" fill="#9FB4D8" font-size="12" font-family="system-ui, sans-serif">Sin volver a teclear</text>
+            <text x="300" y="252" fill="#9FB4D8" font-size="12" font-family="system-ui, sans-serif">la misma guía dos veces.</text>
+          </svg>
+        </figure>
+
+        <p id="flujo-tit" style="margin: 1rem 0 0; font-size: .8rem; color: var(--tinta-3)">
+          La dirección definitiva de la API y su documentación se entregan junto con el
+          token de integración.
         </p>
       </div>
 
@@ -1147,9 +1234,6 @@ curl -H <span class="c-cad">"Authorization: Bearer $TOKEN"</span> \
         <div class="ciudades">
           <span class="ciudad">Cartagena</span>
           <span class="ciudad">Bolívar</span>
-          <span class="ciudad dato">[CIUDAD]</span>
-          <span class="ciudad dato">[CIUDAD]</span>
-          <span class="ciudad dato">[CIUDAD]</span>
           <span class="ciudad">Cobertura nacional</span>
         </div>
       </div>
@@ -1160,11 +1244,11 @@ curl -H <span class="c-cad">"Authorization: Bearer $TOKEN"</span> \
         <div style="margin-top: 1.4rem">
           <div class="norma">
             <svg width="19" height="19" style="flex:none;margin-top:.15rem" viewBox="0 0 24 24" fill="none" stroke="#003C93" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
-            <div><h3>Buenas prácticas de distribución</h3><p>Certificación <span class="dato">[NÚMERO Y VIGENCIA]</span> ante la autoridad sanitaria.</p></div>
+            <div><h3>Buenas prácticas de distribución</h3><p>Certificación vigente ante la autoridad sanitaria. El número y su vigencia se entregan con la propuesta.</p></div>
           </div>
           <div class="norma">
             <svg width="19" height="19" style="flex:none;margin-top:.15rem" viewBox="0 0 24 24" fill="none" stroke="#003C93" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V6a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M15 4v5h5"/></svg>
-            <div><h3>Medicamentos de control especial</h3><p>Habilitación <span class="dato">[NÚMERO Y VIGENCIA]</span> y personal certificado.</p></div>
+            <div><h3>Medicamentos de control especial</h3><p>Habilitación vigente y personal certificado. El número y su vigencia se entregan con la propuesta.</p></div>
           </div>
           <div class="norma">
             <svg width="19" height="19" style="flex:none;margin-top:.15rem" viewBox="0 0 24 24" fill="none" stroke="#003C93" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
@@ -1235,15 +1319,21 @@ curl -H <span class="c-cad">"Authorization: Bearer $TOKEN"</span> \
         <div class="contacto-directo">
           <div class="contacto-fila">
             <svg width="19" height="19" style="flex:none;margin-top:.35rem" viewBox="0 0 24 24" fill="none" stroke="#003C93" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.6a16 16 0 0 0 6 6l1.2-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2Z"/></svg>
-            <div><p class="k">Línea de atención</p><p class="v dato">[605 000 0000]</p></div>
+            {{--
+              El número va vacío a propósito mientras se define cuál será.
+              Un número de ejemplo en una página de contacto es peor que
+              ninguno: alguien lo marca y no contesta nadie, y esa llamada
+              perdida es la primera impresión que se lleva.
+            --}}
+            <div><p class="k">Línea de atención</p><p class="v" style="color: var(--tinta-3)">Próximamente</p></div>
           </div>
           <div class="contacto-fila">
             <svg width="19" height="19" style="flex:none;margin-top:.35rem" viewBox="0 0 24 24" fill="none" stroke="#003C93" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
-            <div><p class="k">Correo</p><p class="v">info@ltp.com</p></div>
+            <div><p class="k">Correo</p><p class="v">info@avalia.com.co</p></div>
           </div>
           <div class="contacto-fila">
             <svg width="19" height="19" style="flex:none;margin-top:.35rem" viewBox="0 0 24 24" fill="none" stroke="#003C93" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
-            <div><p class="k">Sede principal</p><p class="v"><span class="dato">[DIRECCIÓN]</span> · Cartagena</p></div>
+            <div><p class="k">Sede principal</p><p class="v">Cartagena, Bolívar</p></div>
           </div>
         </div>
       </div>
@@ -1273,7 +1363,7 @@ curl -H <span class="c-cad">"Authorization: Bearer $TOKEN"</span> \
         <div class="forma-pie">
           <button class="btn btn--pri" type="submit">Enviar solicitud</button>
           <p class="forma-nota">
-            Se envía a <strong>info@ltp.com</strong>. Al enviar autoriza el tratamiento de sus
+            Se envía a <strong>info@avalia.com.co</strong>. Al enviar autoriza el tratamiento de sus
             datos para responder esta solicitud.
           </p>
         </div>
@@ -1298,9 +1388,10 @@ curl -H <span class="c-cad">"Authorization: Bearer $TOKEN"</span> \
         <div style="margin-top: 1.6rem; padding: 1.1rem 1.2rem; border-radius: 12px; background: var(--vivo-piso); border: 1px solid #BFE6EB">
           <h3 style="font-size: .95rem; margin-bottom: .4rem">Términos de respuesta</h3>
           <ul style="margin: 0; padding-left: 1.1rem; font-size: .86rem; color: var(--tinta-2); line-height: 1.7">
-            <li>Petición de información: <span class="dato">[N]</span> días hábiles</li>
-            <li>Queja o reclamo: <span class="dato">[N]</span> días hábiles</li>
-            <li>Solicitud sobre datos personales: <span class="dato">[N]</span> días hábiles</li>
+            <li>Petición de información o documentos: <strong>10</strong> días hábiles</li>
+            <li>Queja, reclamo o petición general: <strong>15</strong> días hábiles</li>
+            <li>Consulta sobre datos personales: <strong>10</strong> días hábiles</li>
+            <li>Reclamo sobre datos personales: <strong>15</strong> días hábiles</li>
           </ul>
         </div>
       </div>
@@ -1332,7 +1423,7 @@ curl -H <span class="c-cad">"Authorization: Bearer $TOKEN"</span> \
         <div class="forma-pie">
           <button class="btn btn--marino" type="submit">Radicar PQRS</button>
           <p class="forma-nota">
-            Se envía a <strong>info@ltp.com</strong> y recibirá el número de radicado en su correo.
+            Se envía a <strong>info@avalia.com.co</strong> y recibirá el número de radicado en su correo.
           </p>
         </div>
       </form>
@@ -1382,13 +1473,13 @@ curl -H <span class="c-cad">"Authorization: Bearer $TOKEN"</span> \
           <li><a href="#cotizar">Cotizar</a></li>
           <li><a href="#pqrs">PQRS</a></li>
           <li><a href="#pqrs">Tratamiento de datos</a></li>
-          <li><a href="mailto:info@ltp.com">info@ltp.com</a></li>
+          <li><a href="mailto:info@avalia.com.co">info@avalia.com.co</a></li>
         </ul>
       </div>
     </div>
 
     <div class="pie-legal">
-      <span>Avalia Logística S.A.S. · NIT 000.000.000-0 · Cartagena, Colombia</span>
+      <span>Avalia Logística S.A.S. · Cartagena, Colombia</span>
       <span>© 2026 Avalia Logística S.A.S. Todos los derechos reservados.</span>
     </div>
   </div>
@@ -1467,7 +1558,7 @@ document.querySelectorAll('[data-carrusel]').forEach((car) => {
 const BASE_APP = @json(rtrim(request()->getBaseUrl(), '/'))
 
 const API = BASE_APP + '/api/v1/sitio'
-const DESTINO = 'info@ltp.com'
+const DESTINO = 'info@avalia.com.co'
 
 document.querySelectorAll('[data-forma]').forEach((forma) => {
     const esPqrs = forma.dataset.forma === 'pqrs'

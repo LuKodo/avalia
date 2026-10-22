@@ -72,7 +72,12 @@ Route::get('/rastreo/{token}', function (string $token, SoporteEntrega $soporte)
  */
 Route::get('/', fn () => redirect()->route('sitio'));
 
-Route::view('/sitio', 'sitio')->name('sitio');
+/*
+ * El sitio ya no es una vista estatica: las cifras de la portada salen de la
+ * operacion real. Ver PortadaController, que ademas las esconde cuando no hay
+ * datos suficientes para que signifiquen algo.
+ */
+Route::get('/sitio', \App\Http\Controllers\PortadaController::class)->name('sitio');
 
 /*
  * La guia impresa: el papel que viaja pegado a la caja.

@@ -137,7 +137,18 @@ class RegistradorEventos
          * Solo se avisa de cambios de estado reales. Las anotaciones y las
          * correcciones históricas no son noticia para el sistema del cliente.
          */
-        if ($cambiaEstado && ! $esHistorico) {
+        /*
+         * Las novedades avisan SIEMPRE, cambien o no el estado.
+         *
+         * Una segunda novedad sobre un paquete que ya estaba con novedad no
+         * mueve el estado —ya estaba ahí— y por esa puerta se colaba en
+         * silencio: el mensajero volvió, tampoco pudo entregar, y el cliente no
+         * se enteraba. Para él la segunda visita fallida es tan noticia como la
+         * primera, o más.
+         */
+        $esNovedad = $tipo === 'novedad';
+
+        if (($cambiaEstado && ! $esHistorico) || $esNovedad) {
             app(DespachadorWebhooks::class)->porEvento($evento);
             $this->avisarPorCorreo($paquete, $evento);
         }
@@ -166,7 +177,7 @@ class RegistradorEventos
                 return;
             }
 
-            $paquete->loadMissing('orden.cliente', 'orden.origen', 'orden.destino', 'orden.referencias');
+            $paquete->loadMissing('orden.cliente', 'orden.origen', 'orden.destino', 'orden.destinatario', 'orden.referencias');
 
             Mail::to($destino)->queue(new CambioDeEstado($paquete, $evento));
         } catch (\Throwable $e) {

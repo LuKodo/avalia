@@ -302,6 +302,13 @@ class CatalogoController extends Controller
             'direccion'    => ['required', 'string', 'max:200'],
             'detalle_acceso' => ['nullable', 'string', 'max:200'],
             'ciudad'       => ['required', 'string', 'max:80'],
+
+            /*
+             * Rural: corregimiento, vereda, finca. No es una zona aparte
+             * —dentro de un mismo municipio hay sedes urbanas y veredas— sino
+             * una propiedad del punto, y decide si el envío lleva recargo.
+             */
+            'rural'        => ['nullable', 'boolean'],
             /*
              * La coordenada es OBLIGATORIA. Era opcional, y eso dejaba entrar
              * sedes que después no se podían usar para nada que dependiera del
@@ -640,6 +647,7 @@ class CatalogoController extends Controller
             'cliente_id' => $s->cliente_id, 'cliente' => $s->cliente?->razon_social ?? 'Propia de Avalia',
             'zona_id' => $s->zona_id, 'zona' => $s->zona?->nombre,
             'direccion' => $s->direccionCompleta(), 'ciudad' => $s->ciudad,
+            'rural' => (bool) $s->rural,
             'latitud' => $s->latitud, 'longitud' => $s->longitud,
             'coordenada_verificada' => $s->coordenada_verificada,
             'tiene_coordenada' => $s->tieneCoordenada(),

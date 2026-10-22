@@ -61,7 +61,7 @@ return [
      * aviso sin romper el guardado, que es lo que de verdad importa.
      */
     'sitio' => [
-        'correo_avisos' => env('LTP_CORREO_AVISOS', 'info@ltp.com'),
+        'correo_avisos' => env('LTP_CORREO_AVISOS', 'info@avalia.com.co'),
     ],
 
     'trazabilidad' => [

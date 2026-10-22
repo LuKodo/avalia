@@ -41,6 +41,30 @@ enum TipoNovedad: string
         ], true);
     }
 
+    /**
+     * Novedades tras las cuales el paquete vuelve al centro de distribución.
+     *
+     * No es una decisión técnica sino de operación: si nadie recibió, la
+     * dirección estaba mal o el receptor rechazó el envío, la caja no se queda
+     * dando vueltas en el vehículo ni se abandona en la puerta —son
+     * medicamentos—. Regresa a Avalia y allí se decide si se reprograma o se
+     * devuelve al cliente.
+     *
+     * Las demás no implican retorno por sí solas: una ruptura de cadena de frío
+     * o un empaque dañado pueden seguir su camino o no, y eso lo mira quien
+     * sabe de producto, no el enum.
+     */
+    public function exigeRetornoACentro(): bool
+    {
+        return in_array($this, [
+            self::ReceptorAusente,
+            self::DireccionErrada,
+            self::RechazoReceptor,
+            self::AccesoRestringido,
+            self::SedeCerrada,
+        ], true);
+    }
+
     /** Severidad para el semáforo de alertas: warning | serious | critical. */
     public function severidad(): string
     {

@@ -629,6 +629,12 @@ class AdminController extends Controller
                     'id'          => $m->id,
                     'codigo'      => $m->codigo,
                     'nombre'      => $m->nombre(),
+                    // Los campos que el formulario de edición necesita para
+                    // abrirse con lo que ya hay. Sin ellos, editar un mensajero
+                    // sería volver a teclearlo entero.
+                    'telefono'    => $m->user?->telefono,
+                    'vehiculo_id' => $m->vehiculo_id,
+                    'zonas_habilitadas' => $m->zonas_habilitadas ?? [],
                     'vehiculo'    => $m->vehiculo?->placa,
                     'tipo_vehiculo' => $m->vehiculo?->tipo->etiqueta(),
                     'refrigeracion' => (bool) $m->vehiculo?->refrigeracion,

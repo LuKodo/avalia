@@ -97,6 +97,50 @@ class Cassandra
             : $this->fallo($respuesta);
     }
 
+    /**
+     * Comprueba que el archivo esté realmente en el bucket.
+     *
+     * Existe porque un 201 de esta API no garantiza nada. Comprobado en campo:
+     * se subieron tres soportes a un bucket que NO EXISTÍA y las tres veces
+     * respondió «creado». El sistema los dio por entregados —confiar en un 201
+     * es lo razonable— y el cliente nunca los recibió. Un acuse que miente es
+     * peor que un fallo: el fallo se ve.
+     *
+     * Se comprueba con `view` y por HEAD, no con `search`: su buscador está
+     * roto —contesta «el bucket no existe» incluso para buckets que sí
+     * existen— y una comprobación que siempre falla es tan inútil como
+     * ninguna. `view` sí distingue: 200 si está, 404 si no. Y en HEAD no
+     * arrastra el archivo de vuelta.
+     *
+     * Tampoco necesita credencial, así que la comprobación cuesta una petición
+     * vacía. A este volumen —decenas de soportes al día— es un precio
+     * irrisorio por saber la verdad.
+     *
+     * @return array{confirmado: bool, motivo: ?string}
+     */
+    public function confirmar(string $nombre): array
+    {
+        try {
+            $r = Http::timeout(20)->connectTimeout(10)->head(
+                "{$this->urlApi}/buckets/{$this->bucket}/files/".rawurlencode($nombre).'/view'
+            );
+        } catch (ConnectionException $e) {
+            // No se pudo comprobar. No es lo mismo que «no está», y se dice así.
+            return ['confirmado' => false, 'motivo' => 'No se pudo comprobar si el archivo quedó en el bucket: '.$e->getMessage()];
+        }
+
+        if ($r->successful()) {
+            return ['confirmado' => true, 'motivo' => null];
+        }
+
+        return [
+            'confirmado' => false,
+            'motivo' => $r->status() === 404
+                ? "El repositorio respondió «creado» pero el archivo {$nombre} no está en el bucket {$this->bucket}."
+                : "El repositorio aceptó la subida y la comprobación del archivo {$nombre} devolvió {$r->status()}.",
+        ];
+    }
+
     private function exito(Response $r): array
     {
         return [

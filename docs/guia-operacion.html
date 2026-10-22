@@ -1,0 +1,561 @@
+<title>Guía LTP-260821-0014</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{
+  color-scheme: light;
+  --fondo:#F4F6FA; --sup:#FFFFFF; --sup2:#EDF0F7; --sup3:#E1E6F0;
+  --ink:#131B2B; --ink2:#414B5F; --ink3:#6B7589;
+  --linea:#D6DCE8; --linea2:#B4BDCE;
+  --acento:#1E2A5E; --acento-suave:#E6E9F2; --acento-ink:#16204A;
+  --marca1:#071B3D; --marca2:#0F3572; --marca3:#17499B;
+  --marca-ink2:#B9CCEC; --marca-ink3:#7E9BD1;
+  --bien:#0CA30C; --atencion:#8A5D08; --critico:#B02A2A;
+  --bien-s:#E3F3E3; --atencion-s:#FBF0D8; --critico-s:#F8E6E6;
+  --sans:"Archivo","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --serif:"Source Serif 4",Georgia,serif;
+  --sombra:0 1px 2px rgba(19,27,43,.05), 0 14px 36px -26px rgba(19,27,43,.45);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --fondo:#0B1220; --sup:#131B2B; --sup2:#1B2436; --sup3:#232E43;
+    --ink:#E8ECF4; --ink2:#AEB8CA; --ink3:#7F8A9E;
+    --linea:#2A3446; --linea2:#3D4A60;
+    --acento:#B4C4EA; --acento-suave:#1B2545; --acento-ink:#C9D6F2;
+    --marca1:#050F26; --marca2:#0A2350; --marca3:#103371;
+    --bien:#5FBF5F; --atencion:#D9A441; --critico:#E3746C;
+    --bien-s:#14301A; --atencion-s:#33280F; --critico-s:#3B1D1B;
+    --sombra:0 1px 2px rgba(0,0,0,.5), 0 16px 40px -28px rgba(0,0,0,1);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --fondo:#0B1220; --sup:#131B2B; --sup2:#1B2436; --sup3:#232E43;
+  --ink:#E8ECF4; --ink2:#AEB8CA; --ink3:#7F8A9E;
+  --linea:#2A3446; --linea2:#3D4A60;
+  --acento:#B4C4EA; --acento-suave:#1B2545; --acento-ink:#C9D6F2;
+  --marca1:#050F26; --marca2:#0A2350; --marca3:#103371;
+  --bien:#5FBF5F; --atencion:#D9A441; --critico:#E3746C;
+  --bien-s:#14301A; --atencion-s:#33280F; --critico-s:#3B1D1B;
+  --sombra:0 1px 2px rgba(0,0,0,.5), 0 16px 40px -28px rgba(0,0,0,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--ink);font-family:var(--serif);font-size:16.5px;line-height:1.62;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--sans);margin:0;text-wrap:balance}
+p{margin:0 0 1em}
+code,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+a{color:var(--acento)}
+:focus-visible{outline:2px solid var(--acento);outline-offset:2px;border-radius:3px}
+
+.envoltura{max-width:1000px;margin:0 auto;padding:0 1rem 5rem}
+
+/* ---------- portada ---------- */
+.portada{
+  position:relative;overflow:hidden;color:#fff;border-radius:0 0 20px 20px;
+  background:radial-gradient(130% 120% at 88% 0%, var(--marca3) 0%, transparent 58%),
+             linear-gradient(150deg, var(--marca2) 0%, var(--marca1) 76%);
+  padding:2.6rem 1.4rem 2.2rem;margin-bottom:2rem;
+}
+@media(min-width:820px){.portada{padding:3.4rem 3rem 2.8rem}}
+.portada-in{max-width:1000px;margin:0 auto;position:relative}
+.trazo{position:absolute;inset:-40% -15% auto auto;width:520px;color:rgba(255,255,255,.12);pointer-events:none}
+.rotulo{font-family:var(--mono);font-size:.64rem;letter-spacing:.2em;text-transform:uppercase;color:var(--marca-ink3);margin:0 0 .9rem}
+.portada h1{font-size:clamp(1.9rem,5vw,3rem);font-weight:700;letter-spacing:-.04em;line-height:1.04}
+.portada h1 span{color:var(--marca-ink2)}
+.entradilla{font-size:clamp(.95rem,2vw,1.08rem);color:var(--marca-ink2);max-width:60ch;margin:1rem 0 0;line-height:1.55}
+.chapa{display:flex;flex-wrap:wrap;gap:1px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.16);border-radius:12px;overflow:hidden;margin-top:2rem}
+.chapa div{background:var(--marca1);padding:.75rem .95rem;flex:1 1 150px}
+.chapa dt{font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--marca-ink3);margin:0 0 .3rem}
+.chapa dd{margin:0;font-family:var(--mono);font-size:.92rem;font-weight:600;color:#fff}
+
+/* ---------- bloques ---------- */
+section{margin-top:2.6rem;scroll-margin-top:1rem}
+h2{font-size:clamp(1.25rem,3vw,1.6rem);font-weight:700;letter-spacing:-.028em;padding-bottom:.6rem;border-bottom:2px solid var(--ink);margin-bottom:1.1rem}
+h3{font-size:1.02rem;font-weight:600;letter-spacing:-.015em;margin:1.6rem 0 .5rem}
+.sec-rotulo{font-family:var(--mono);font-size:.62rem;letter-spacing:.17em;text-transform:uppercase;color:var(--acento);display:block;margin-bottom:.4rem}
+
+/* ---------- pasos: sí son una secuencia, por eso van numerados ---------- */
+.paso{background:var(--sup);border:1px solid var(--linea);border-radius:14px;margin-bottom:.9rem;overflow:hidden;box-shadow:var(--sombra)}
+.paso-cab{display:flex;gap:.9rem;align-items:flex-start;padding:1rem 1.1rem;background:linear-gradient(180deg,var(--sup2),var(--sup));border-bottom:1px solid var(--linea)}
+.paso-n{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--acento);color:#fff;font-family:var(--mono);font-size:.86rem;font-weight:700}
+:root[data-theme="dark"] .paso-n,:root:not([data-theme="light"]) .paso-n{color:#08142E}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .paso-n{color:#fff}}
+.paso-tit{min-width:0}
+.paso-tit h3{margin:0;font-size:1.05rem;font-weight:700;letter-spacing:-.02em}
+.quien{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.4rem}
+.paso-cuerpo{padding:1rem 1.1rem}
+.paso-cuerpo p:last-child{margin-bottom:0}
+
+.chip{display:inline-flex;align-items:center;gap:.3rem;font-family:var(--mono);font-size:.6rem;letter-spacing:.09em;text-transform:uppercase;padding:.2rem .5rem;border-radius:999px;white-space:nowrap;font-weight:500}
+.c-admin{background:#EDE7F8;color:#4A3AA7}
+.c-oper{background:var(--acento-suave);color:var(--acento-ink)}
+.c-msj{background:#FDF0E4;color:#8A4B12}
+.c-cli{background:#E2F1F9;color:#155E7C}
+.c-sis{background:var(--sup3);color:var(--ink3)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .c-admin{background:#241C4A;color:#B9AEF5}
+  :root:not([data-theme="light"]) .c-msj{background:#3A2410;color:#E9B384}
+  :root:not([data-theme="light"]) .c-cli{background:#10303E;color:#8FCDE6}
+}
+
+/* ---------- datos verificados ---------- */
+.dato{background:var(--sup2);border-left:3px solid var(--acento);border-radius:0 9px 9px 0;padding:.75rem .9rem;margin:.9rem 0;font-family:var(--mono);font-size:.79rem;line-height:1.75}
+.dato b{color:var(--ink);font-weight:600}
+.dato .etq{color:var(--ink3);display:inline-block;min-width:11ch}
+
+.nota{font-size:.87rem;color:var(--ink2);background:var(--sup2);border-radius:9px;padding:.7rem .85rem;margin:.9rem 0 0;line-height:1.55}
+.nota strong{color:var(--ink)}
+.aviso{border-left:3px solid var(--atencion);background:var(--atencion-s);border-radius:0 9px 9px 0;padding:.8rem .95rem;margin:1rem 0;font-size:.88rem;line-height:1.55}
+.aviso--alto{border-left-color:var(--critico);background:var(--critico-s)}
+.aviso strong{display:block;margin-bottom:.25rem}
+
+/* ---------- tablas ---------- */
+.desliza{overflow-x:auto;border:1px solid var(--linea);border-radius:12px;background:var(--sup);margin:1.1rem 0}
+table{width:100%;border-collapse:collapse;font-family:var(--sans);font-size:.85rem}
+th{font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);font-weight:500;text-align:left;padding:.65rem .85rem;background:var(--sup2);border-bottom:1px solid var(--linea);white-space:nowrap}
+td{padding:.65rem .85rem;border-bottom:1px solid var(--linea);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+td.m{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+ul,ol{margin:0 0 1em;padding-left:1.25rem}
+li{margin-bottom:.4em}
+li::marker{color:var(--ink3)}
+
+.terminal{background:var(--marca1);color:#D5E2F7;border-radius:12px;padding:.9rem 1rem;font-family:var(--mono);font-size:.76rem;line-height:1.7;overflow-x:auto;margin:1rem 0}
+.terminal .cmt{color:var(--marca-ink3)}
+.terminal .ok{color:#6FD46F}
+
+footer{margin-top:3.5rem;padding-top:1.4rem;border-top:1px solid var(--linea);font-family:var(--mono);font-size:.72rem;color:var(--ink3);line-height:1.7}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="portada">
+  <div class="portada-in">
+    <svg class="trazo" viewBox="0 0 400 200" aria-hidden="true">
+      <circle cx="300" cy="40" r="130" fill="none" stroke="currentColor"/>
+      <circle cx="300" cy="40" r="190" fill="none" stroke="currentColor" opacity=".55"/>
+    </svg>
+    <p class="rotulo">Guía de operación · recorrido verificado</p>
+    <h1>Una guía, de principio<br><span>a fin.</span></h1>
+    <p class="entradilla">
+      Este documento sigue un envío real creado en el sistema: quién lo radica, cómo
+      se asigna, qué captura el mensajero y cómo lo consulta el cliente. Todos los
+      valores de abajo salieron de esa ejecución, no de un ejemplo inventado.
+    </p>
+    <dl class="chapa">
+      <div><dt>Guía</dt><dd>LTP-260821-0014</dd></div>
+      <div><dt>Referencia del cliente</dt><dd>RAD-DEMO-171528</dd></div>
+      <div><dt>Paquete</dt><dd>…-0014-P01</dd></div>
+      <div><dt>Eventos</dt><dd>6</dd></div>
+      <div><dt>Estado final</dt><dd>Entregado</dd></div>
+    </dl>
+  </div>
+</header>
+
+<div class="envoltura">
+
+<section>
+  <span class="sec-rotulo">Antes de empezar</span>
+  <h2>Quién entra y con qué</h2>
+  <p>
+    Todas las cuentas usan la misma contraseña de demostración: <code>Pharmaser*2026</code>.
+    Cada rol entra directamente a donde trabaja — nadie aterriza en una pantalla que
+    no le sirve.
+  </p>
+
+  <div class="desliza">
+    <table>
+      <thead><tr><th>Rol</th><th>Correo</th><th>Entra a</th><th>Qué hace en este recorrido</th></tr></thead>
+      <tbody>
+        <tr><td><span class="chip c-admin">Administrador</span></td><td class="m">admin@ltp.local</td><td class="m">/admin</td><td>Cargó el catálogo antes de todo esto</td></tr>
+        <tr><td><span class="chip c-oper">Operador</span></td><td class="m">operador@ltp.local</td><td class="m">/tablero</td><td>Radica el envío y vigila el despacho</td></tr>
+        <tr><td><span class="chip c-msj">Mensajero</span></td><td class="m">julian.ramirez@ltp.local</td><td class="m">/campo</td><td>Recolecta, transporta y entrega</td></tr>
+        <tr><td><span class="chip c-cli">Cliente</span></td><td class="m">farmacia@clinicadelnorte.example</td><td class="m">/rastreo</td><td>Consulta y descarga el soporte</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="aviso">
+    <strong>Primero el catálogo, siempre.</strong>
+    Sin cliente, sedes con coordenada, zona con tarifa, vehículo y mensajero cargados,
+    no hay nada que radicar. Ese es trabajo del administrador en
+    <code>/admin/clientes</code> y <code>/admin/flota</code>, y va antes del paso&nbsp;1.
+  </div>
+</section>
+
+<section>
+  <span class="sec-rotulo">El recorrido</span>
+  <h2>Los nueve pasos</h2>
+
+  <article class="paso">
+    <header class="paso-cab">
+      <span class="paso-n">1</span>
+      <div class="paso-tit">
+        <h3>El operador abre el catálogo</h3>
+        <div class="quien"><span class="chip c-oper">Operador</span><span class="chip c-sis">/radicar</span></div>
+      </div>
+    </header>
+    <div class="paso-cuerpo">
+      <p>
+        Antes de escribir nada, la pantalla carga qué puede radicar. Lo importante
+        aparece de una vez: cómo llama <em>ese</em> cliente a su referencia, y si es
+        obligatoria.
+      </p>
+      <div class="dato">
+        <span class="etq">cliente</span> <b>Clínica del Norte S.A.S.</b><br>
+        <span class="etq">referencia</span> la llama <b>«Radicado»</b> · obligatoria<br>
+        <span class="etq">sedes</span> 4 disponibles, todas con coordenada verificada
+      </div>
+      <p class="nota">
+        <strong>Por qué no hay campo de dirección libre.</strong> Las sedes salen de un
+        catálogo con coordenada confirmada en campo. Escribir direcciones a mano es la
+        principal causa de entregas en la cuadra equivocada, así que la pantalla
+        sencillamente no ofrece esa opción.
+      </p>
+    </div>
+  </article>
+
+  <article class="paso">
+    <header class="paso-cab">
+      <span class="paso-n">2</span>
+      <div class="paso-tit">
+        <h3>Radica el envío y nace la guía</h3>
+        <div class="quien"><span class="chip c-oper">Operador</span><span class="chip c-cli">o el cliente</span></div>
+      </div>
+    </header>
+    <div class="paso-cuerpo">
+      <p>
+        Cuatro bloques: quién y a dónde, la referencia del cliente, qué se transporta,
+        y cuándo. Al guardar se genera la guía, que es la llave de todo lo que viene
+        después.
+      </p>
+      <div class="dato">
+        <span class="etq">guía</span> <b>LTP-260821-0014</b><br>
+        <span class="etq">referencia</span> <b>RAD-DEMO-171528</b><br>
+        <span class="etq">paquete</span> LTP-260821-0014-P01 · cadena de frío 2–8 °C · 4,2 kg<br>
+        <span class="etq">criticidad</span> urgente · comprometido para las 20:14<br>
+        <span class="etq">total</span> $ 66.500
+      </div>
+      <p class="nota">
+        <strong>Tres puertas para radicar, no una.</strong> El operador por teléfono,
+        el cliente desde su portal, o el ERP del cliente por API. Las tres desembocan
+        en el mismo sitio y generan la misma guía.
+      </p>
+    </div>
+  </article>
+
+  <article class="paso">
+    <header class="paso-cab">
+      <span class="paso-n">3</span>
+      <div class="paso-tit">
+        <h3>El motor propone mensajero</h3>
+        <div class="quien"><span class="chip c-sis">Automático</span><span class="chip c-oper">Operador confirma</span></div>
+      </div>
+    </header>
+    <div class="paso-cuerpo">
+      <p>
+        Primero el <strong>filtro duro</strong>, que descarta a quien no puede hacerlo.
+        Después el <strong>puntaje</strong>, que ordena entre los que sí. El sistema
+        explica; el operador decide.
+      </p>
+      <div class="dato">
+        <span class="etq">asignado</span> <b>Julián Ramírez</b> · WKN482 (camioneta refrigerada)<br>
+        <span class="etq">puntaje</span> <b>94</b><br>
+        <span class="etq">desglose</span> cercanía 88 · holgura 100 · carga 92 · ruta 100 · desempeño 95
+      </div>
+      <p>
+        El filtro duro no es negociable ni desde el despacho: un paquete refrigerado en
+        una moto no es una mala asignación, es una imposibilidad física que además rompe
+        el cumplimiento normativo.
+      </p>
+      <p class="nota">
+        <strong>Si el operador contradice la sugerencia, el motivo es obligatorio.</strong>
+        Esa fricción es deliberada: esos motivos son la única señal que dice dónde se
+        equivoca el motor, y sin ellos los pesos nunca se calibran.
+      </p>
+    </div>
+  </article>
+
+  <article class="paso">
+    <header class="paso-cab">
+      <span class="paso-n">4</span>
+      <div class="paso-tit">
+        <h3>La tarea aparece en el teléfono</h3>
+        <div class="quien"><span class="chip c-msj">Mensajero</span><span class="chip c-sis">/campo</span></div>
+      </div>
+    </header>
+    <div class="paso-cuerpo">
+      <p>
+        El mensajero ve solo sus tareas del día, con el borde de color según el tipo de
+        carga. La lista se dibuja desde el almacenamiento del teléfono y se refresca por
+        detrás: abrirla en un sótano de hospital no puede dejar la pantalla en blanco.
+      </p>
+      <div class="dato">
+        <span class="etq">acción</span> <b>recoger</b> en Bodega Central Pharmaser<br>
+        <span class="etq">controles</span> escaneo · temperatura · foto del indicador
+      </div>
+      <p class="nota">
+        <strong>Los controles los define el tipo de paquete.</strong> Uno general no pide
+        temperatura; uno de control especial exige acta de custodia. La pantalla lee esa
+        lista en vez de repetir condicionales, así que agregar un control nuevo no obliga
+        a tocar la interfaz.
+      </p>
+    </div>
+  </article>
+
+  <article class="paso">
+    <header class="paso-cab">
+      <span class="paso-n">5</span>
+      <div class="paso-tit">
+        <h3>Recolecta</h3>
+        <div class="quien"><span class="chip c-msj">Mensajero</span></div>
+      </div>
+    </header>
+    <div class="paso-cuerpo">
+      <p>
+        Escanea el código de la etiqueta —sin escaneo válido no hay recolección— y
+        registra la temperatura del datalogger. El evento entra a la cadena de auditoría
+        con su posición en la secuencia.
+      </p>
+      <div class="dato">
+        <span class="etq">estado</span> creado → asignado → <b>recolectado</b><br>
+        <span class="etq">temperatura</span> <b>4,6 °C</b> · dentro del rango 2–8<br>
+        <span class="etq">secuencia</span> eslabón <b>3183</b> de la cadena
+      </div>
+    </div>
+  </article>
+
+  <article class="paso">
+    <header class="paso-cab">
+      <span class="paso-n">6</span>
+      <div class="paso-tit">
+        <h3>En tránsito, vigilado por la sonda</h3>
+        <div class="quien"><span class="chip c-sis">Tempubi</span><span class="chip c-oper">Operador vigila</span></div>
+      </div>
+    </header>
+    <div class="paso-cuerpo">
+      <p>
+        La sonda instalada en la cava reporta temperatura y ubicación cada cinco minutos.
+        Mide el <em>compartimento</em>, no el paquete: los envíos a bordo heredan sus
+        lecturas mientras estén bajo custodia de ese vehículo.
+      </p>
+      <p>
+        El operador lo ve en <code>/telemetria</code>: mapa con la posición de la
+        mercancía, temperatura de cada sonda y episodios abiertos.
+      </p>
+      <div class="aviso aviso--alto">
+        <strong>Si la temperatura se sale del rango</strong>
+        Se abre un <em>episodio</em>, no una alerta por lectura: diez lecturas seguidas a
+        9 °C son un solo problema de veinte minutos. Al superar la tolerancia, el sistema
+        congela qué envíos iban a bordo y lo anota en la bitácora de cada uno. El episodio
+        no se cierra sin una decisión documentada.
+      </div>
+    </div>
+  </article>
+
+  <article class="paso">
+    <header class="paso-cab">
+      <span class="paso-n">7</span>
+      <div class="paso-tit">
+        <h3>Captura la evidencia</h3>
+        <div class="quien"><span class="chip c-msj">Mensajero</span><span class="chip c-sis">Obligatorio</span></div>
+      </div>
+    </header>
+    <div class="paso-cuerpo">
+      <p>
+        <strong>Sin evidencia no hay entrega.</strong> El botón de confirmar no se habilita
+        hasta tener foto del receptor y firma, en los tres tipos de paquete —también en los
+        generales—. El servidor lo valida por separado: la interfaz no es la única barrera.
+      </p>
+      <div class="dato">
+        <span class="etq">foto</span> subida · checksum <b>c414cd0e204d…</b><br>
+        <span class="etq">firma</span> subida · checksum <b>c414cd0e204d…</b>
+      </div>
+      <ul>
+        <li>La foto abre la <strong>cámara nativa del teléfono</strong>: enfoca mejor y tiene flash.</li>
+        <li>Se <strong>comprime en el dispositivo</strong> a 1600 px: de ~4 MB baja a ~300 KB, y con veinte entregas al día eso son 100 MB de datos del mensajero que no se gastan.</li>
+        <li>La firma se dibuja con el dedo, al doble de resolución para que no salga pixelada en el acta.</li>
+        <li>Cada archivo guarda su <strong>checksum SHA-256</strong>: si el archivo cambia después, se nota.</li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="paso">
+    <header class="paso-cab">
+      <span class="paso-n">8</span>
+      <div class="paso-tit">
+        <h3>Entrega</h3>
+        <div class="quien"><span class="chip c-msj">Mensajero</span></div>
+      </div>
+    </header>
+    <div class="paso-cuerpo">
+      <p>
+        Escaneo en destino, datos de quien recibe con su autorización de tratamiento de
+        datos, y las dos evidencias. El sistema compara la coordenada contra la sede.
+      </p>
+      <div class="dato">
+        <span class="etq">entregado</span> <b>2026-08-21 · 17:15:33</b> (America/Bogota)<br>
+        <span class="etq">recibió</span> <b>Diana Restrepo</b> · C.C. 43881204 · Química farmacéutica<br>
+        <span class="etq">ubicación</span> coherente · a <b>0 m</b> del destino<br>
+        <span class="etq">temperatura</span> 5,1 °C al entregar · sin excursiones
+      </div>
+      <p class="nota">
+        <strong>Todo funciona sin señal.</strong> La entrega se guarda en el teléfono y sale
+        cuando haya red. Las evidencias suben <em>antes</em> que el evento, porque el evento
+        las referencia y el servidor verifica que existan.
+      </p>
+    </div>
+  </article>
+
+  <article class="paso">
+    <header class="paso-cab">
+      <span class="paso-n">9</span>
+      <div class="paso-tit">
+        <h3>El cliente consulta por su propia referencia</h3>
+        <div class="quien"><span class="chip c-cli">Cliente</span><span class="chip c-sis">/rastreo</span></div>
+      </div>
+    </header>
+    <div class="paso-cuerpo">
+      <p>
+        El cliente no conoce la guía LTP: conoce su radicado. Escribe lo que tiene a mano
+        —mal tecleado, en minúsculas, con espacios en vez de guiones— y el sistema lo
+        reconoce igual.
+      </p>
+      <div class="dato">
+        <span class="etq">tecleó</span> <b>«rad demo 171528»</b><br>
+        <span class="etq">reconocido</span> como referencia de cliente<br>
+        <span class="etq">devolvió</span> guía <b>LTP-260821-0014</b> · entregado
+      </div>
+
+      <h3>El soporte de entrega que recibe</h3>
+      <div class="desliza">
+        <table>
+          <tbody>
+            <tr><th>Fecha</th><td class="m">2026-08-21</td></tr>
+            <tr><th>Hora</th><td class="m">17:15:33 · America/Bogota</td></tr>
+            <tr><th>Recibió</th><td>Diana Restrepo</td></tr>
+            <tr><th>Documento</th><td class="m">43881204 <em>— completo, por ser el dueño del envío</em></td></tr>
+            <tr><th>Cargo</th><td>Química farmacéutica</td></tr>
+            <tr><th>Mensajero</th><td>Julián Ramírez · WKN482</td></tr>
+            <tr><th>Evidencias</th><td>2 · firma y fotografía, con checksum</td></tr>
+            <tr><th>Cadena de frío</th><td>Recolección 4,6 °C · Entrega 5,1 °C · sin excursiones</td></tr>
+            <tr><th>Trazabilidad</th><td class="m">6 eventos encadenados</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="nota">
+        <strong>El documento se ve distinto según quién pregunta.</strong> El cliente dueño
+        ve el documento completo del receptor y ese acceso queda registrado. Un operador
+        interno lo ve enmascarado (<code>****1204</code>). Otro cliente no encuentra nada.
+      </p>
+    </div>
+  </article>
+</section>
+
+<section>
+  <span class="sec-rotulo">Cuando algo sale mal</span>
+  <h2>El camino que no termina en entrega</h2>
+  <p>
+    No toda guía llega. El sistema no trata eso como una excepción rara sino como parte
+    del flujo, porque en una operación real ronda el 9&nbsp;% de los envíos.
+  </p>
+
+  <div class="desliza">
+    <table>
+      <thead><tr><th>Qué pasó</th><th>Quién lo registra</th><th>Qué exige el sistema</th></tr></thead>
+      <tbody>
+        <tr><td>Receptor ausente</td><td>Mensajero, desde campo</td><td>Tipificar la causa · el envío pasa a «con novedad»</td></tr>
+        <tr><td>Dirección errada</td><td>Mensajero</td><td>Tipificar · el operador reprograma</td></tr>
+        <tr><td>Empaque dañado</td><td>Mensajero</td><td><strong>Evidencia fotográfica obligatoria</strong></td></tr>
+        <tr><td>Ruptura de cadena de frío</td><td>Sonda o mensajero</td><td>Evidencia · alerta al operador y al cliente · decisión documentada</td></tr>
+        <tr><td>Sede cerrada</td><td>Mensajero</td><td>Evidencia fotográfica</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Las novedades se tipifican desde el inicio porque son el insumo de los indicadores
+    de calidad. «12&nbsp;% de novedades» no sirve para nada; «8&nbsp;% de receptor ausente
+    en la sede X» sí permite actuar — y esa es la conversación que se tiene con el cliente.
+  </p>
+
+  <div class="aviso">
+    <strong>Nada se corrige borrando.</strong>
+    La bitácora solo admite anexar. Un error se arregla registrando un evento nuevo, nunca
+    modificando el anterior. Es lo que hace que el registro sirva como prueba.
+  </div>
+</section>
+
+<section>
+  <span class="sec-rotulo">Integración</span>
+  <h2>Si el cliente quiere conectar su ERP</h2>
+  <p>
+    El administrador emite un token desde <code>/admin/clientes</code>. Pertenece al
+    <strong>cliente</strong>, no a una persona: cuando el analista que montó la integración
+    se va de la institución, la integración sigue viva.
+  </p>
+
+  <div class="terminal">
+<span class="cmt"># Consultar por la referencia del cliente</span>
+curl -H "Authorization: Bearer $TOKEN" \
+     "https://ltp.pharmaser.com.co/api/v1/rastreo?q=RAD-DEMO-171528"
+
+<span class="cmt"># Consultar 200 referencias de una vez</span>
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+     -d '{"claves":["RAD-...","OC-4471"],"detalle":true}' \
+     https://ltp.pharmaser.com.co/api/v1/rastreo/lote
+
+<span class="cmt"># Descargar el soporte completo de un envío</span>
+curl -H "Authorization: Bearer $TOKEN" \
+     https://ltp.pharmaser.com.co/api/v1/envios/LTP-260821-0014/soporte
+
+<span class="cmt"># Exportar un periodo a CSV</span>
+curl -H "Authorization: Bearer $TOKEN" \
+     "https://ltp.pharmaser.com.co/api/v1/envios/exportar?formato=csv&desde=2026-08-01"
+  </div>
+
+  <p>
+    El token se emite con permiso de <em>solo consultar</em> o también de <em>radicar</em>.
+    Un token de integración nunca accede al despacho ni a la administración: responde 403
+    con un mensaje que lo explica, no con un error genérico.
+  </p>
+
+  <p class="nota">
+    <strong>Y el camino sin cuenta.</strong> Para quien solo pregunta «¿ya llegó?», el
+    operador emite un enlace de rastreo con vencimiento y revocable, que se reenvía por
+    correo o WhatsApp. No expone el documento del receptor.
+  </p>
+</section>
+
+<section>
+  <span class="sec-rotulo">Dónde queda todo</span>
+  <h2>Qué puede reconstruir después</h2>
+
+  <div class="desliza">
+    <table>
+      <thead><tr><th>Pregunta</th><th>Dónde se responde</th></tr></thead>
+      <tbody>
+        <tr><td>¿Quién recibió, cuándo y dónde?</td><td>Soporte de entrega, por guía o por referencia</td></tr>
+        <tr><td>¿Alguien alteró el registro?</td><td>Verificación de la cadena en <code>/admin/auditoria</code></td></tr>
+        <tr><td>¿Quién miró el documento de un receptor?</td><td>Auditoría de accesos, con usuario, IP y hora</td></tr>
+        <tr><td>¿Qué sonda vigilaba ese vehículo en julio?</td><td>Histórico de instalaciones de dispositivo</td></tr>
+        <tr><td>¿Por qué el motor asignó a ese mensajero?</td><td>Desglose del puntaje guardado en la asignación</td></tr>
+        <tr><td>¿Quién cambió la tarifa de esa zona?</td><td>Auditoría, con el valor anterior y el nuevo</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  LTP · Guía de operación · 21 de agosto de 2026<br>
+  Los valores de este documento provienen de un recorrido real ejecutado sobre el sistema,
+  no de un ejemplo redactado. La guía LTP-260821-0014 existe en la base de datos y puede
+  consultarse.<br>
+  Credenciales de demostración local: deben cambiarse antes de exponer el sistema a la red.
+</footer>
+
+</div>

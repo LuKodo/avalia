@@ -27,7 +27,7 @@ class GuiaImpresaController extends Controller
 {
     public function __invoke(Request $request, string $guia)
     {
-        $orden = Orden::with(['cliente', 'origen', 'destino', 'referencias', 'paquetes'])
+        $orden = Orden::with(['cliente', 'origen', 'destino', 'destinatario', 'referencias', 'paquetes', 'paquetes.referencias'])
             ->where('numero_guia', $guia)
             ->firstOrFail();
 

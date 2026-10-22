@@ -6,6 +6,7 @@ use App\Enums\Criticidad;
 use App\Enums\EstadoPaquete;
 use App\Enums\TipoPaquete;
 use App\Models\Orden;
+use App\Models\Paquete;
 use App\Models\ReferenciaCliente;
 use App\Models\Sede;
 use App\Services\Despacho\MotorAsignacion;
@@ -42,7 +43,34 @@ class OrdenController extends Controller
             // radicar a nombre de otra institución.
             'cliente_id'       => ['nullable', 'integer', 'exists:clientes,id'],
             'sede_origen_id'   => ['required', 'integer', 'exists:sedes,id'],
-            'sede_destino_id'  => ['required', 'integer', 'exists:sedes,id', 'different:sede_origen_id'],
+            /*
+             * Sede O dirección libre, nunca las dos ni ninguna.
+             *
+             * La sede sirve para lo pactado —una clínica, una bodega— y la
+             * dirección libre para los domicilios, donde dar de alta la casa de
+             * cada paciente como sede no tiene ningún sentido.
+             */
+            'sede_destino_id'  => ['nullable', 'integer', 'exists:sedes,id', 'different:sede_origen_id', 'required_without:destinatario'],
+
+            /*
+             * Domicilios: una persona con su dirección, no una sede.
+             *
+             * La sede sirve para lo pactado —una clínica, una bodega—: se visita
+             * cien veces y conviene tenerla registrada, verificada y con zona.
+             * La casa de un paciente se visita una vez, y darla de alta como
+             * sede solo ensucia el catálogo.
+             */
+            'destinatario'            => ['nullable', 'array', 'required_without:sede_destino_id'],
+            'destinatario.nombre'     => ['required_with:destinatario', 'string', 'max:160'],
+            'destinatario.direccion'  => ['required_with:destinatario', 'string', 'max:200'],
+            'destinatario.ciudad'     => ['required_with:destinatario', 'string', 'max:80'],
+            'destinatario.rural'      => ['nullable', 'boolean'],
+            'destinatario.telefono'   => ['nullable', 'string', 'max:30'],
+            'destinatario.documento'  => ['nullable', 'string', 'max:30'],
+            'destinatario.tipo_documento' => ['nullable', 'string', 'max:10'],
+            'destinatario.detalle_acceso' => ['nullable', 'string', 'max:200'],
+            'destinatario.latitud'    => ['nullable', 'numeric', 'between:-90,90'],
+            'destinatario.longitud'   => ['nullable', 'numeric', 'between:-180,180'],
             'criticidad'       => ['required', 'string', 'in:urgente,programado'],
             'ventana_desde'    => ['nullable', 'date'],
             'ventana_hasta'    => ['nullable', 'date', 'after:ventana_desde'],
@@ -50,7 +78,9 @@ class OrdenController extends Controller
             'contacto_destino_telefono' => ['nullable', 'string', 'max:30'],
             'observaciones'    => ['nullable', 'string', 'max:1000'],
 
-            'referencias'          => ['nullable', 'array', 'max:5'],
+            // El tope sube de 5 a 100: una caja de dispensaciones las lleva a
+            // decenas, y cinco era un límite pensado para un radicado suelto.
+            'referencias'          => ['nullable', 'array', 'max:100'],
             'referencias.*.tipo'   => ['required_with:referencias', 'string', 'max:30'],
             'referencias.*.valor'  => ['required_with:referencias', 'string', 'max:120'],
 
@@ -58,12 +88,36 @@ class OrdenController extends Controller
             'paquetes.*.tipo'         => ['required', 'string', 'in:cadena_frio,controlado,general'],
             'paquetes.*.descripcion'  => ['nullable', 'string', 'max:500'],
             'paquetes.*.lote'         => ['nullable', 'string', 'max:60'],
-            'paquetes.*.peso_kg'      => ['required', 'numeric', 'min:0.01', 'max:2000'],
+            'paquetes.*.empaque'      => ['nullable', 'string', 'in:bolsa,caja,panales'],
+
+            // Lo declara el cliente, que es quien sabe lo que mete en la caja.
+            'paquetes.*.alto_costo'   => ['nullable', 'boolean'],
+            // Opcional: quien radica diez dispensaciones en una caja no sabe
+            // el peso de cada una, y un número inventado es peor que ninguno.
+            'paquetes.*.peso_kg'      => ['nullable', 'numeric', 'min:0.01', 'max:2000'],
             'paquetes.*.largo_cm'     => ['nullable', 'integer', 'min:1', 'max:500'],
             'paquetes.*.ancho_cm'     => ['nullable', 'integer', 'min:1', 'max:500'],
             'paquetes.*.alto_cm'      => ['nullable', 'integer', 'min:1', 'max:500'],
             'paquetes.*.temp_min'     => ['nullable', 'numeric', 'min:-80', 'max:40'],
             'paquetes.*.temp_max'     => ['nullable', 'numeric', 'min:-80', 'max:40', 'gte:paquetes.*.temp_min'],
+
+            /*
+             * Las referencias de CADA caja.
+             *
+             * Una caja puede llevar varias dispensaciones y el recibido es uno
+             * solo: se firma la caja, no cada documento. Por eso las referencias
+             * cuelgan del paquete y no del envío —así, cuando una caja se
+             * devuelve y las demás se entregan, se sabe exactamente qué SSC
+             * llegaron—.
+             *
+             * El tope de 100 no es arbitrario: es lo que cabe en una caja de
+             * dispensaciones sin que nadie se plantee si eso sigue siendo una
+             * caja. Las de la orden siguen aceptandose para no romper lo que ya
+             * integra por API.
+             */
+            'paquetes.*.referencias'        => ['nullable', 'array', 'max:100'],
+            'paquetes.*.referencias.*.tipo'  => ['required_with:paquetes.*.referencias', 'string', 'max:30'],
+            'paquetes.*.referencias.*.valor' => ['required_with:paquetes.*.referencias', 'string', 'max:120'],
 
             'asignar_automatico' => ['nullable', 'boolean'],
         ]);
@@ -73,11 +127,18 @@ class OrdenController extends Controller
         // La sede de destino tiene que ser del mismo cliente: sin esta
         // verificación, un token válido podría radicar envíos hacia sedes ajenas
         // y usar el sistema para descubrir la red de otro cliente.
-        $destino = Sede::findOrFail($datos['sede_destino_id']);
+        $destino = isset($datos['sede_destino_id']) ? Sede::findOrFail($datos['sede_destino_id']) : null;
+
         abort_if(
-            $destino->cliente_id !== null && $destino->cliente_id !== $cliente->id,
+            $destino && $destino->cliente_id !== null && $destino->cliente_id !== $cliente->id,
             403,
             'La sede de destino no pertenece a este cliente.'
+        );
+
+        abort_if(
+            $destino !== null && filled($datos['destinatario'] ?? null),
+            422,
+            'Indique una sede de destino o un destinatario a domicilio, no los dos.'
         );
 
         /*
@@ -95,7 +156,9 @@ class OrdenController extends Controller
          */
         $origen = Sede::findOrFail($datos['sede_origen_id']);
 
-        foreach ([['origen', $origen], ['destino', $destino]] as [$rotulo, $punto]) {
+        // Un domicilio no pasa por aprobación: no es un punto pactado, es la
+        // casa de alguien y la escribe el cliente para un envío concreto.
+        foreach (array_filter([['origen', $origen], ['destino', $destino]], fn ($par) => $par[1] !== null) as [$rotulo, $punto]) {
             if (($punto->estado_aprobacion ?? 'aprobada') === 'aprobada') {
                 continue;
             }
@@ -105,8 +168,21 @@ class OrdenController extends Controller
                 : "El punto de {$rotulo} «{$punto->nombre}» esta pendiente de aprobacion por Avalia.");
         }
 
-        if ($cliente->referencia_obligatoria && empty($datos['referencias'])) {
-            abort(422, "Este cliente exige {$cliente->etiqueta_referencia} en cada radicación.");
+        /*
+         * La referencia obligatoria vale en CUALQUIERA de los dos niveles.
+         *
+         * Desde que las referencias cuelgan de la caja —una guía con tres SSC
+         * necesita saber cuál iba en cuál—, hay radicaciones perfectamente
+         * identificadas que no llevan ninguna a nivel de envío. Mirar solo ahí
+         * las rechazaba todas, y con ellas la radicación masiva entera, cuyo
+         * modelo es justamente «una fila, un SSC, dentro de su caja».
+         */
+        $hayReferenciaDeCaja = collect($datos['paquetes'] ?? [])
+            ->contains(fn (array $p) => ! empty($p['referencias']));
+
+        if ($cliente->referencia_obligatoria && empty($datos['referencias']) && ! $hayReferenciaDeCaja) {
+            abort(422, "Este cliente exige {$cliente->etiqueta_referencia} en cada radicación, "
+                .'en el envío o en alguna de sus cajas.');
         }
 
         /*
@@ -135,19 +211,67 @@ class OrdenController extends Controller
             );
         }
 
-        $orden = DB::transaction(function () use ($datos, $cliente, $request) {
+        /*
+         * El destinatario a domicilio se crea ANTES de la orden.
+         *
+         * Nace como no persistente: pertenece a esta guía, no al padrón del
+         * cliente. Un paciente que recibe una vez no tiene por qué quedarse
+         * guardado para siempre, y la tabla ya trae la política de retención
+         * que lo suprime cuando vence.
+         */
+        $destinatarioId = null;
+
+        if (filled($datos['destinatario'] ?? null)) {
+            $d = $datos['destinatario'];
+
+            $destinatarioId = \App\Models\Destinatario::create([
+                'cliente_id' => $cliente->id,
+                'tipo'       => 'paciente',
+                'nombre'     => $d['nombre'],
+                'tipo_documento' => $d['tipo_documento'] ?? null,
+                'documento'  => $d['documento'] ?? null,
+                'telefono'   => $d['telefono'] ?? null,
+                'direccion'  => $d['direccion'],
+                'detalle_acceso' => $d['detalle_acceso'] ?? null,
+                'ciudad'     => $d['ciudad'],
+                'rural'      => (bool) ($d['rural'] ?? false),
+                'latitud'    => $d['latitud'] ?? null,
+                'longitud'   => $d['longitud'] ?? null,
+                // Verificada solo si vino marcada en el mapa. Una dirección
+                // escrita a mano no es una coordenada comprobada.
+                'coordenada_verificada' => isset($d['latitud'], $d['longitud']),
+                'origen_dato' => $request->user() instanceof \App\Models\Cliente ? 'api' : 'formulario',
+                'persistente' => false,
+            ])->id;
+        }
+
+        $orden = DB::transaction(function () use ($datos, $cliente, $request, $destinatarioId) {
             $criticidad = Criticidad::from($datos['criticidad']);
 
             $orden = Orden::create([
                 'numero_guia'      => $this->guias->generar(),
                 'cliente_id'       => $cliente->id,
                 'sede_origen_id'   => $datos['sede_origen_id'],
-                'sede_destino_id'  => $datos['sede_destino_id'],
+                'sede_destino_id'  => $datos['sede_destino_id'] ?? null,
+                'destinatario_id'  => $destinatarioId,
                 'creada_por'       => $request->user() instanceof \App\Models\User ? $request->user()->id : null,
                 'criticidad'       => $criticidad,
                 'ventana_desde'    => $datos['ventana_desde'] ?? null,
                 'ventana_hasta'    => $datos['ventana_hasta'] ?? null,
-                'comprometida_en'  => $datos['ventana_hasta'] ?? now()->addHours($criticidad === Criticidad::Urgente ? 3 : 24),
+                /*
+                 * El compromiso cuenta desde que ABRE la ventana, no desde que
+                 * se radica.
+                 *
+                 * Antes se contaba siempre desde `now()`, y eso producía
+                 * compromisos incoherentes: una guia urgente radicada a las 8
+                 * para recoger a las 14 prometía estar entregada a las 11, tres
+                 * horas antes de que el mensajero pudiera siquiera recogerla.
+                 *
+                 * Nunca por debajo de ahora: una ventana que abrió ayer no puede
+                 * generar un compromiso ya vencido en el momento de radicar.
+                 */
+                'comprometida_en'  => $datos['ventana_hasta']
+                    ?? $this->compromisoDesde($datos['ventana_desde'] ?? null, $criticidad),
                 'contacto_destino_nombre'   => $datos['contacto_destino_nombre'] ?? null,
                 'contacto_destino_telefono' => $datos['contacto_destino_telefono'] ?? null,
                 'observaciones'    => $datos['observaciones'] ?? null,
@@ -174,13 +298,30 @@ class OrdenController extends Controller
                     'estado'      => EstadoPaquete::Creado,
                     'descripcion' => $p['descripcion'] ?? null,
                     'lote'        => $p['lote'] ?? null,
-                    'peso_kg'     => $p['peso_kg'],
+                    'empaque'     => \App\Enums\TipoEmpaque::tryFrom($p['empaque'] ?? '') ?? \App\Enums\TipoEmpaque::Caja,
+                    'alto_costo'  => (bool) ($p['alto_costo'] ?? false),
+                    'peso_kg'     => $p['peso_kg'] ?? null,
                     'largo_cm'    => $p['largo_cm'] ?? null,
                     'ancho_cm'    => $p['ancho_cm'] ?? null,
                     'alto_cm'     => $p['alto_cm'] ?? null,
                     'temp_min'    => $tipo->exigeRefrigeracion() ? ($p['temp_min'] ?? config('ltp.cadena_frio.rango_defecto.min')) : null,
                     'temp_max'    => $tipo->exigeRefrigeracion() ? ($p['temp_max'] ?? config('ltp.cadena_frio.rango_defecto.max')) : null,
                 ]);
+
+                foreach ($p['referencias'] ?? [] as $ref) {
+                    ReferenciaCliente::updateOrCreate(
+                        [
+                            'cliente_id'        => $cliente->id,
+                            'tipo'              => $ref['tipo'],
+                            'valor_normalizado' => ReferenciaCliente::normalizar($ref['valor']),
+                        ],
+                        [
+                            'orden_id'   => $orden->id,
+                            'paquete_id' => $paquete->id,
+                            'valor'      => $ref['valor'],
+                        ]
+                    );
+                }
 
                 $this->registrador->registrar($paquete, EstadoPaquete::Creado, [
                     'actor' => $request->user() instanceof \App\Models\User ? $request->user() : null,
@@ -297,6 +438,24 @@ class OrdenController extends Controller
      * direcciones a mano es la principal causa de entregas en la cuadra
      * equivocada, así que la pantalla no ofrece esa opción.
      */
+    /**
+     * A qué hora queda comprometida una guía sin hora de cierre.
+     *
+     * Las horas van por criticidad: tres para una urgente, veinticuatro para
+     * una programada. Es la regla que el cliente ya conoce y la que el
+     * formulario propone en pantalla; aquí se repite porque una radicación por
+     * API no pasa por el formulario y tiene que obtener lo mismo.
+     */
+    private function compromisoDesde(?string $ventanaDesde, Criticidad $criticidad): \Illuminate\Support\Carbon
+    {
+        $horas = $criticidad === Criticidad::Urgente ? 3 : 24;
+        $inicio = $ventanaDesde ? \Illuminate\Support\Carbon::parse($ventanaDesde) : now();
+
+        return $inicio->lt(now())
+            ? now()->addHours($horas)
+            : $inicio->copy()->addHours($horas);
+    }
+
     public function catalogo(Request $request): JsonResponse
     {
         $actor   = $request->user();
@@ -327,6 +486,9 @@ class OrdenController extends Controller
                         'tipo'      => $s->tipo,
                         'direccion' => $s->direccionCompleta(),
                         'ciudad'    => $s->ciudad,
+                        // Para avisar al escogerla: un destino rural cuesta
+                        // distinto, y enterarse en la factura es tarde.
+                        'rural'     => (bool) $s->rural,
                         'propia'    => $s->cliente_id !== null,
                         'coordenada_verificada' => $s->coordenada_verificada,
                         'contacto'  => $s->contacto_nombre,
@@ -358,7 +520,7 @@ class OrdenController extends Controller
         $cliente = $this->clienteDe($request);
 
         $ordenes = Orden::query()
-            ->with(['origen', 'destino', 'referencias', 'paquetes.mensajero.user'])
+            ->with(['origen', 'destino', 'destinatario', 'referencias', 'paquetes.mensajero.user'])
             ->delCliente($cliente?->id)
             ->when($datos['desde'] ?? null, fn ($q, $d) => $q->whereDate('created_at', '>=', $d))
             ->when($datos['hasta'] ?? null, fn ($q, $h) => $q->whereDate('created_at', '<=', $h))
@@ -414,6 +576,85 @@ class OrdenController extends Controller
             ->withQueryString();
 
         return response()->json($ordenes);
+    }
+
+    /**
+     * Cancela una guía radicada por error.
+     *
+     * Cancelada, no borrada. Una guía que desaparece se lleva por delante sus
+     * eventos, y con ellos la afirmación de que la bitácora no se toca —que es
+     * lo único que convierte esta plataforma en algo que sirve ante un
+     * auditor—. Así que la guía se queda, marcada, con quién la canceló,
+     * cuándo y por qué.
+     *
+     * **Solo antes de que alguien la tome.** En cuanto hay un mensajero
+     * asignado, la caja entró en la operación de otra persona: puede estar ya
+     * en una ruta, o recogida. A partir de ahí no se cancela desde la pantalla
+     * del cliente; se reporta y lo resuelve operación, que es quien sabe dónde
+     * está la caja.
+     */
+    public function cancelar(Request $request, string $guia): JsonResponse
+    {
+        $datos = $request->validate([
+            'motivo' => ['required', 'string', 'min:5', 'max:300'],
+        ]);
+
+        $orden = Orden::where('numero_guia', Orden::normalizarGuia($guia))
+            ->with('paquetes')
+            ->firstOrFail();
+
+        $cliente = $this->clienteDe($request);
+
+        // Un cliente solo cancela lo suyo. La operación puede cancelar
+        // cualquiera, que para eso responde por todas.
+        abort_if(
+            $cliente !== null && $orden->cliente_id !== $cliente->id,
+            403,
+            'Esa guía no es suya.'
+        );
+
+        $cancelables = $orden->paquetes->filter(
+            fn (Paquete $p) => $p->estado === EstadoPaquete::Creado
+        );
+
+        abort_if(
+            $cancelables->isEmpty(),
+            409,
+            'Esta guía ya está en manos de la operación y no se puede cancelar desde aquí. '
+            .'Comuníquese con Avalia para reportarla.'
+        );
+
+        return DB::transaction(function () use ($orden, $cancelables, $datos, $request) {
+            foreach ($cancelables as $paquete) {
+                $this->registrador->registrar($paquete, EstadoPaquete::Cancelado, [
+                    'tipo'  => 'cancelacion',
+                    'actor' => $request->user(),
+                    'datos' => ['motivo' => $datos['motivo']],
+                ]);
+            }
+
+            /*
+             * Si se cancelaron TODAS las cajas, la guía queda cerrada. Si solo
+             * algunas —porque las demás ya iban en ruta— la guía sigue viva:
+             * cerrarla entera dejaría cajas en la calle sin guía que las
+             * explique.
+             */
+            if ($cancelables->count() === $orden->paquetes->count()) {
+                $orden->forceFill([
+                    'estado_comercial' => 'cancelada',
+                    'cerrada_en'       => now(),
+                ])->save();
+            }
+
+            return response()->json([
+                'guia'       => $orden->numero_guia,
+                'canceladas' => $cancelables->count(),
+                'de'         => $orden->paquetes->count(),
+                'mensaje'    => $cancelables->count() === $orden->paquetes->count()
+                    ? 'Guía cancelada. Queda registrada como cancelada, no borrada.'
+                    : 'Se cancelaron las cajas que todavía no habían salido. El resto sigue en ruta.',
+            ]);
+        });
     }
 
     private function clienteDe(Request $request): ?\App\Models\Cliente

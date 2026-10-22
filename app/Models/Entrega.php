@@ -24,6 +24,7 @@ class Entrega extends Model
         'geolocalizacion_coherente', 'entregada_en', 'entregada_en_dispositivo',
         'desfase_reloj_seg', 'dentro_de_ventana', 'firma_id', 'foto_receptor_id',
         'consentimiento_datos',
+        'vigente', 'reemplaza_a', 'reabierta_en', 'reabierta_por', 'motivo_reapertura',
     ];
 
     protected function casts(): array
@@ -34,6 +35,8 @@ class Entrega extends Model
             'geolocalizacion_coherente' => 'boolean',
             'dentro_de_ventana'         => 'boolean',
             'consentimiento_datos'      => 'boolean',
+            'vigente'                   => 'boolean',
+            'reabierta_en'              => 'datetime',
             'latitud'                   => 'float',
             'longitud'                  => 'float',
         ];
@@ -42,6 +45,24 @@ class Entrega extends Model
     public function paquete(): BelongsTo
     {
         return $this->belongsTo(Paquete::class);
+    }
+
+    /** Quien reabrió la entrega. Nulo mientras nadie la haya reabierto. */
+    public function reabiertaPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reabierta_por');
+    }
+
+    /**
+     * La que cuenta hoy.
+     *
+     * Un paquete puede tener varias entregas desde que se puede reabrir una
+     * cerrada por error. Las anteriores no se borran —son evidencia— pero no
+     * son las que responden «¿quién recibió esto?».
+     */
+    public function scopeVigente(\Illuminate\Database\Eloquent\Builder $q): \Illuminate\Database\Eloquent\Builder
+    {
+        return $q->where('vigente', true);
     }
 
     public function firma(): BelongsTo

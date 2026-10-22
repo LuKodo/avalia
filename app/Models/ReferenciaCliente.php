@@ -21,7 +21,7 @@ class ReferenciaCliente extends Model
 
     protected $table = 'referencias_cliente';
 
-    protected $fillable = ['orden_id', 'cliente_id', 'tipo', 'valor', 'valor_normalizado'];
+    protected $fillable = ['orden_id', 'paquete_id', 'cliente_id', 'tipo', 'valor', 'valor_normalizado'];
 
     protected function casts(): array
     {
@@ -33,6 +33,18 @@ class ReferenciaCliente extends Model
         static::saving(function (self $ref) {
             $ref->valor_normalizado = self::normalizar($ref->valor);
         });
+    }
+
+    /**
+     * La caja concreta que lleva esta referencia, si se dijo.
+     *
+     * Nula cuando la referencia se registró para el envío entero —lo normal
+     * en una orden de un solo paquete—. Quién la lee resuelve ese caso con
+     * `Paquete::referenciasEfectivas()`.
+     */
+    public function paquete(): BelongsTo
+    {
+        return $this->belongsTo(Paquete::class);
     }
 
     public function orden(): BelongsTo

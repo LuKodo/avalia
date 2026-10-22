@@ -29,7 +29,7 @@ class ClienteIntegracionSeeder extends Seeder
             [
                 'codigo'                  => 'DPH-003',
                 'razon_social'            => 'Distribuciones Pharmaser LTDA',
-                'email_notificaciones'    => 'portoperezcarlos1101@hotmail.com',
+                'email_notificaciones'    => 'operacion@pharmaser.com.co',
                 'telefono'                => '3006543210',
                 'etiqueta_referencia'     => 'Referencia',
                 'tipo_referencia_defecto' => 'dispensacion',
@@ -108,8 +108,21 @@ class ClienteIntegracionSeeder extends Seeder
          * El correo es el mismo de las notificaciones a propósito: en pruebas
          * conviene que el aviso llegue a la misma bandeja desde la que se entra.
          */
+        /*
+         * Si el usuario ya existe con el correo ANTERIOR, se le cambia en vez
+         * de crear uno nuevo.
+         *
+         * `firstOrCreate` busca por correo: cambiarlo aqui sin mas habria
+         * creado una segunda cuenta para la misma persona en cualquier
+         * servidor donde ya estaba la primera, y entonces hay dos usuarios de
+         * Pharmaser y nadie sabe con cual se entra.
+         */
+        $anterior = User::where('email', 'portoperezcarlos1101@hotmail.com')->first();
+
+        $anterior?->forceFill(['email' => 'operacion@pharmaser.com.co'])->save();
+
         $usuario = User::firstOrCreate(
-            ['email' => 'portoperezcarlos1101@hotmail.com'],
+            ['email' => 'operacion@pharmaser.com.co'],
             [
                 'nombre'     => 'Carlos Baldovino',
                 'password'   => Hash::make('Avalia*2026'),

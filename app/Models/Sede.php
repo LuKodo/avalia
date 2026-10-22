@@ -16,7 +16,7 @@ class Sede extends Model
 
     protected $fillable = [
         'cliente_id', 'zona_id', 'nombre', 'codigo_centro_costo', 'tipo', 'direccion', 'detalle_acceso',
-        'ciudad', 'latitud', 'longitud', 'coordenada_verificada',
+        'ciudad', 'rural', 'latitud', 'longitud', 'coordenada_verificada',
         'contacto_nombre', 'contacto_telefono',
         'ventanas_recepcion', 'contacto_nombre', 'contacto_telefono', 'activo',
     ];
@@ -26,6 +26,7 @@ class Sede extends Model
         return [
             'ventanas_recepcion'    => 'array',
             'coordenada_verificada' => 'boolean',
+            'rural'                 => 'boolean',
             // Sin este casteo, `revisada_en` vuelve de la base como cadena y
             // cualquier intento de formatearla revienta. El dato se guardaba
             // bien; lo que fallaba era leerlo.

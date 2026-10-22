@@ -24,6 +24,22 @@ Schedule::call(function (VerificadorCadena $verificador) {
     $verificador->sellar(now()->subDay());
 })->dailyAt('02:30')->name('sellar-jornada')->withoutOverlapping();
 
+/*
+ * Aviso de lo que lleva días parado.
+ *
+ * A las 07:00, antes de que arranque el despacho: el objetivo es que la lista
+ * esté en la bandeja cuando se toman las decisiones del día, no a media tarde
+ * cuando ya no se puede hacer nada con ella.
+ *
+ * Entre semana y no a diario: un correo el domingo por la mañana diciendo que
+ * hay cuatro guías paradas no lo lee nadie, y enseña a ignorar el del lunes.
+ */
+Schedule::command('avalia:avisar-sin-cerrar')
+    ->weekdays()
+    ->at('07:00')
+    ->name('avisar-guias-sin-cerrar')
+    ->withoutOverlapping();
+
 // Purga de posiciones antiguas: es la tabla que más crece y casi nunca se
 // consulta más allá de la jornada. La trazabilidad de los eventos no se toca.
 Schedule::call(function () {

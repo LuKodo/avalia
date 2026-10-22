@@ -82,10 +82,18 @@ export function crearFirmador(lienzo) {
         lienzo.width = Math.round(caja.width * escala)
         lienzo.height = Math.round(caja.height * escala)
         ctx.scale(escala, escala)
-        ctx.lineWidth = 2.2
+        /*
+         * Trazo grueso y muy oscuro, sobre fondo claro forzado por CSS.
+         *
+         * Se firma de pie, con el dedo, en un teléfono a contraluz y a veces
+         * mojado. Un trazo fino y discreto obliga a repetir la firma, y repetir
+         * una firma delante de quien recibe es la clase de fricción que acaba
+         * en «déjelo así».
+         */
+        ctx.lineWidth = 3
         ctx.lineCap = 'round'
         ctx.lineJoin = 'round'
-        ctx.strokeStyle = '#131B2B'
+        ctx.strokeStyle = '#0B1020'
     }
 
     const punto = (e) => {
@@ -139,7 +147,26 @@ export function crearFirmador(lienzo) {
         async aBlob() {
             if (!hayTrazo) return null
 
-            return await new Promise((r) => lienzo.toBlob(r, 'image/png'))
+            /*
+             * Se exporta sobre BLANCO, no sobre transparencia.
+             *
+             * El lienzo solo contiene el trazo; su fondo es CSS y no viaja en
+             * el PNG. Una firma guardada con transparencia es un trazo oscuro
+             * sobre nada: se ve bien en un visor de fondo claro y desaparece en
+             * uno oscuro o en un acta impresa sobre color. Y esa firma es la
+             * prueba de que alguien recibió un medicamento: tiene que verse
+             * siempre, no según dónde se mire.
+             */
+            const plano = document.createElement('canvas')
+            plano.width = lienzo.width
+            plano.height = lienzo.height
+
+            const ctxPlano = plano.getContext('2d')
+            ctxPlano.fillStyle = '#FFFFFF'
+            ctxPlano.fillRect(0, 0, plano.width, plano.height)
+            ctxPlano.drawImage(lienzo, 0, 0)
+
+            return await new Promise((r) => plano.toBlob(r, 'image/png'))
         },
 
         destruir() {

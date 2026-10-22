@@ -11,6 +11,20 @@
 
 **{{ $estado }}**{{ $ocurrido ? ' · '.$ocurrido->format('d/m/Y H:i') : '' }}
 
+@if ($novedad)
+@if ($novedad['tipo'])
+**Motivo:** {{ $novedad['tipo'] }}
+@endif
+@if ($novedad['descripcion'])
+> {{ $novedad['descripcion'] }}
+@endif
+@if ($novedad['retorna'])
+
+**El envío regresa al centro de distribución de Avalia.** Desde allí se coordina
+con usted si se reprograma la entrega o se devuelve.
+@endif
+@endif
+
 @if ($origen || $destino)
 {{ $origen ?? '—' }} → {{ $destino ?? '—' }}
 @endif
@@ -26,8 +40,8 @@
 Ver el detalle del envío
 </x-mail::button>
 
-Este aviso se genera solo al cambiar el estado. Si algo no cuadra, responda a
-este correo y lo revisamos.
+Este aviso se genera solo cuando el envío cambia de estado o se reporta una
+novedad. Si algo no cuadra, responda a este correo y lo revisamos.
 
 Gracias,<br>
 {{ config('app.name') }}

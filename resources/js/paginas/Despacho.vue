@@ -28,6 +28,33 @@ const COLUMNAS_CSV = [
     'Mensajero sugerido', 'Puntaje',
 ]
 
+/*
+ * El Excel de lo YA asignado.
+ *
+ * El de la bandeja lista lo que falta por despachar, y por eso desaparecía en
+ * cuanto se asignaba: quien quería la planilla del día —quién lleva qué— tenía
+ * que sacarla antes de asignar, que es justo cuando todavía no hay nada que
+ * planillar. Son dos preguntas distintas y necesitan dos exportaciones.
+ */
+const COLUMNAS_RUTA = [
+    'Guía', 'Referencia', 'Cliente', 'Mensajero', 'Estado',
+    'Destino', 'Holgura (min)', 'Estado de holgura', 'Peso (kg)',
+]
+
+function filasRuta() {
+    return enRuta.value.map((f) => [
+        f.guia,
+        f.referencias?.[0] ?? '',
+        f.cliente,
+        f.mensajero ?? '',
+        f.estado_etiqueta,
+        f.destino ?? '',
+        f.holgura_min ?? '',
+        f.holgura_min === null ? '' : (f.holgura_min < 0 ? 'vencida' : 'vigente'),
+        f.peso_kg ?? '',
+    ])
+}
+
 const bandeja = ref([])
 
 /*
@@ -187,7 +214,79 @@ async function reenviar(fila) {
     }
 }
 
-onMounted(() => { cargar(); cargarCatalogos(); cargarSoportes() })
+/* ================================= en ruta ============================= */
+
+/**
+ * Lo que ya va en manos de un mensajero.
+ *
+ * La bandeja solo enseña lo que está sin asignar —es su oficio— y por eso no
+ * había forma de tocar un envío que ya salió. Pero la calle no respeta el
+ * reparto: una moto se avería, alguien se enferma, una ruta se desborda. Esta
+ * lista es la puerta para corregirlo sin entrar por consola.
+ */
+const enRuta = ref([])
+
+async function cargarEnRuta() {
+    try {
+        const r = await api.enCurso()
+        enRuta.value = r.paquetes
+    } catch {
+        // Un fallo aquí no puede tapar la bandeja, que es el trabajo principal.
+        enRuta.value = []
+    }
+}
+
+/* ------------------------------------------- custodia prolongada (D10) --
+ *
+ * Lo que lleva días sin cerrarse. No es lo mismo que «vencida»: una vencida
+ * incumplió su hora y sigue su curso; una de cuatro días no la está moviendo
+ * nadie, y en algún punto dejó de aparecer en la lista de alguien.
+ *
+ * Va arriba y cerrada por omisión cuando no hay ninguna: una alerta que está
+ * siempre visible deja de leerse a la semana.
+ */
+const UMBRAL_DIAS = 3
+
+const estancados = ref([])
+
+async function cargarEstancados() {
+    try {
+        const r = await api.custodiaProlongada(UMBRAL_DIAS)
+        estancados.value = r.paquetes
+    } catch {
+        // Igual que «en ruta»: un fallo aquí no puede tapar la bandeja.
+        estancados.value = []
+    }
+}
+
+const COLUMNAS_ESTANCADAS = ['Guía', 'Paquete', 'Cliente', 'Destino', 'Estado', 'En custodia de', 'Días', 'Radicada']
+
+function filasEstancadas() {
+    return estancados.value.map((p) => [
+        p.guia, p.codigo, p.cliente, p.destino, p.estado_etiqueta, p.custodia, p.dias, p.radicada_en,
+    ])
+}
+
+/**
+ * Abre el mismo selector de candidatos, marcado como reasignación.
+ *
+ * Se reutiliza la pantalla de asignar en vez de hacer otra: el operador elige
+ * mensajero igual, ve el mismo puntaje y el mismo filtro duro. Lo único que
+ * cambia es que aquí el motivo nunca es opcional.
+ */
+async function reasignar(fila) {
+    detalle.value = { ...fila, es_reasignacion: true }
+    candidatos.value = null
+    motivo.value = ''
+
+    try {
+        candidatos.value = await api.candidatos(fila.paquete_id)
+    } catch (e) {
+        error.value = e.message
+    }
+}
+
+onMounted(() => { cargar(); cargarCatalogos(); cargarSoportes(); cargarEnRuta(); cargarEstancados() })
 
 async function abrir(fila) {
     detalle.value = fila
@@ -225,6 +324,18 @@ async function cargarCatalogos() {
 async function asignar(mensajeroId) {
     const esSugerido = candidatos.value?.candidatos?.[0]?.mensajero_id === mensajeroId
 
+    /*
+     * Reasignar siempre exige motivo, coincida o no con la sugerencia.
+     *
+     * Quitarle un paquete a quien ya lo tenía no es despachar: es corregir
+     * algo, y ese porqué es lo único que explica después por qué un envío
+     * cambió de manos a mitad de camino.
+     */
+    if (detalle.value?.es_reasignacion && !motivo.value.trim()) {
+        error.value = 'Indique por qué reasigna este paquete a otro mensajero.'
+        return
+    }
+
     if (!esSugerido && !motivo.value.trim()) {
         error.value = 'Indique el motivo por el que descarta la sugerencia del sistema.'
         return
@@ -236,7 +347,7 @@ async function asignar(mensajeroId) {
     try {
         await api.asignar(detalle.value.paquete_id, mensajeroId, motivo.value.trim() || null)
         detalle.value = null
-        await cargar()
+        await Promise.all([cargar(), cargarEnRuta(), cargarEstancados()])
     } catch (e) {
         error.value = e.message
     } finally {
@@ -403,6 +514,15 @@ function formatoHolgura(min) {
                         <td>
                             <span class="pastilla pastilla--neutral">{{ f.tipo_etiqueta }}</span>
                             <span v-if="f.criticidad === 'urgente'" class="pastilla pastilla--critico">⚡</span>
+                            <!--
+                                No pesa más ni exige frío, pero un extravío deja de
+                                ser un incidente para ser un problema serio. Quien
+                                decide quién lo lleva tiene que verlo aquí.
+                            -->
+                            <span
+                                v-if="f.alto_costo" class="pastilla pastilla--alto"
+                                title="Medicamento de alto costo: requiere recomendaciones especiales para su traslado"
+                            >$ Alto costo</span>
                         </td>
                         <td :title="f.origen">{{ f.origen }}</td>
                         <td class="num" :title="f.registrado_en">{{ fechaCorta(f.registrado_en) }}</td>
@@ -425,8 +545,17 @@ function formatoHolgura(min) {
             </table>
         </div>
 
-        <!-- Panel de asignación -->
-        <div v-if="detalle" class="panel">
+        <!--
+            Panel de asignación, en diálogo.
+
+            Antes se dibujaba debajo de la tabla, así que pulsar «Revisar» en
+            una bandeja de treinta filas parecía no hacer nada: el panel se
+            abría fuera de la pantalla y había que ir a buscarlo. Un diálogo
+            aparece donde está mirando el operador y no le mueve el sitio: al
+            cerrarlo sigue en la misma fila, que es donde estaba trabajando.
+        -->
+        <div v-if="detalle" class="modal-fondo" @click.self="detalle = null">
+        <div class="panel panel--modal">
             <header class="panel-cab">
                 <div>
                     <h2 class="panel-titulo num">{{ detalle.guia }}</h2>
@@ -522,13 +651,22 @@ function formatoHolgura(min) {
                     </li>
                 </ul>
 
-                <div v-if="candidatos.candidatos.length > 1" class="motivo">
+                <!--
+                    Al reasignar el motivo siempre aparece, haya una sugerencia o
+                    diez: no se está despachando, se está corrigiendo algo, y el
+                    porqué es lo único que lo explica tres semanas después.
+                -->
+                <div v-if="detalle.es_reasignacion || candidatos.candidatos.length > 1" class="motivo">
                     <label class="etiqueta" for="motivo">
-                        Motivo, si descarta la sugerencia (obligatorio)
+                        {{ detalle.es_reasignacion
+                            ? `Por qué se reasigna (obligatorio) — hoy lo lleva ${detalle.mensajero ?? 'otro mensajero'}`
+                            : 'Motivo, si descarta la sugerencia (obligatorio)' }}
                     </label>
                     <input
                         id="motivo" v-model="motivo" class="campo" type="text"
-                        placeholder="Ej.: el sugerido ya va con retraso en la ruta del norte"
+:placeholder="detalle.es_reasignacion
+                            ? 'Ej.: se vará la moto y el envío va con poca holgura'
+                            : 'Ej.: el sugerido ya va con retraso en la ruta del norte'"
                     >
                     <p class="motivo-nota">
                         Estos motivos son la materia prima para calibrar los pesos del motor.
@@ -537,31 +675,124 @@ function formatoHolgura(min) {
                 </div>
             </template>
         </div>
+        </div>
+
+        <!-- ================================== lo que lleva días parado -->
+        <section v-if="estancados.length" class="estancadas">
+            <header class="soportes-cab soportes-cab--con-accion">
+                <div>
+                    <h2 class="soportes-tit">
+                        Más de {{ UMBRAL_DIAS }} días sin cerrarse · {{ estancados.length }}
+                    </h2>
+                    <p class="soportes-sub">
+                        No es lo mismo que vencida: estas no las está moviendo nadie. La columna
+                        que importa es la última —a quién hay que preguntarle—.
+                    </p>
+                </div>
+
+                <BotonCsv
+                    nombre="guias-estancadas"
+                    :columnas="COLUMNAS_ESTANCADAS"
+                    :filas="filasEstancadas"
+                />
+            </header>
+
+            <div class="tarjeta desliza">
+                <table class="tabla">
+                    <thead>
+                        <tr>
+                            <th>Guía</th><th>Cliente</th><th>Destino</th>
+                            <th>Estado</th><th class="num">Días</th><th>En custodia de</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="p in estancados" :key="p.paquete_id">
+                            <td class="num">{{ p.guia }}</td>
+                            <td class="tenue">{{ p.cliente }}</td>
+                            <td class="tenue">{{ p.destino }}</td>
+                            <td><span class="pastilla pastilla--neutral">{{ p.estado_etiqueta }}</span></td>
+                            <td class="num">
+                                <span class="pastilla" :class="p.dias >= 7 ? 'pastilla--critico' : 'pastilla--atencion'">
+                                    {{ p.dias }}
+                                </span>
+                            </td>
+                            <td><strong>{{ p.custodia }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ========================================= lo que ya va en ruta -->
+        <section v-if="enRuta.length" class="enruta">
+            <header class="soportes-cab soportes-cab--con-accion">
+                <div>
+                <h2 class="soportes-tit">En ruta · {{ enRuta.length }}</h2>
+                <p class="soportes-sub">
+                    Paquetes que ya van en manos de un mensajero. Se pueden reasignar si algo
+                    cambia en la calle —una moto averiada, alguien que se enferma, una ruta
+                    desbordada—. El motivo queda en la bitácora del envío.
+                </p>
+                </div>
+
+                <BotonCsv
+                    nombre="ruta-del-dia"
+                    :columnas="COLUMNAS_RUTA"
+                    :filas="filasRuta"
+                />
+            </header>
+
+            <table class="tabla-soportes">
+                <thead>
+                    <tr>
+                        <th>Guía</th><th>Cliente</th><th>Destino</th>
+                        <th>Estado</th><th>Mensajero</th><th>Holgura</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="f in enRuta" :key="f.paquete_id">
+                        <td class="num">{{ f.guia }}</td>
+                        <td>{{ f.cliente }}</td>
+                        <td class="celda-envuelve">{{ f.destino ?? '—' }}</td>
+                        <td><span class="pastilla pastilla--neutral">{{ f.estado_etiqueta }}</span></td>
+                        <td>{{ f.mensajero ?? '—' }}</td>
+                        <td class="num" :class="claseHolgura(f.holgura_min)">{{ formatoHolgura(f.holgura_min) }}</td>
+                        <td>
+                            <button type="button" class="btn-reenviar" @click="reasignar(f)">Reasignar</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
 
         <!-- ================================= soportes sin acuse del cliente -->
         <section v-if="soportes.length" class="soportes">
             <header class="soportes-cab">
-                <h2 class="soportes-tit">Soportes sin confirmar</h2>
+                <h2 class="soportes-tit">Soportes enviados al cliente</h2>
                 <p class="soportes-sub">
-                    {{ soportes.length }} envío(s) de soporte que el repositorio del cliente
-                    todavía no ha acusado. La entrega es válida igual —el soporte está en
-                    Avalia— pero el cliente no lo ha recibido.
+                    Envíos al repositorio de clientes con integración. Un acuse significa que
+                    su servidor contestó que sí, no que el archivo esté donde usted espera:
+                    si el cliente avisa de que no lo recibió, vuélvalo a enviar desde aquí.
                 </p>
             </header>
 
             <table class="tabla-soportes">
                 <thead>
                     <tr>
-                        <th>Guía</th><th>Cliente</th><th>Referencia</th>
-                        <th>Tipo</th><th>Intentos</th><th>Último error</th><th></th>
+                        <th>Guía</th><th>Cliente</th><th>Archivo</th>
+                        <th>Estado</th><th>Intentos</th><th>Último error</th><th></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="f in soportes" :key="f.evidencia_id">
                         <td class="num">{{ f.guia }}</td>
                         <td>{{ f.cliente }}</td>
-                        <td class="num">{{ f.referencia ?? '—' }}</td>
-                        <td>{{ f.tipo }}</td>
+                        <td class="num">{{ f.nombre_externo ?? f.referencia ?? '—' }}</td>
+                        <td>
+                            <span class="pastilla" :class="f.enviada ? 'pastilla--bien' : 'pastilla--atencion'">
+                                {{ f.enviada ? 'Acusado' : 'Sin acuse' }}
+                            </span>
+                        </td>
                         <td class="num">{{ f.intentos }}</td>
                         <td class="error-celda">{{ f.ultimo_error ?? '—' }}</td>
                         <td>
@@ -569,7 +800,7 @@ function formatoHolgura(min) {
                                 type="button" class="btn-reenviar"
                                 :disabled="reenviando === f.evidencia_id"
                                 @click="reenviar(f)"
-                            >{{ reenviando === f.evidencia_id ? 'Enviando…' : 'Reintentar' }}</button>
+                            >{{ reenviando === f.evidencia_id ? 'Enviando…' : (f.enviada ? 'Reenviar' : 'Reintentar') }}</button>
                         </td>
                     </tr>
                 </tbody>
@@ -579,6 +810,19 @@ function formatoHolgura(min) {
 </template>
 
 <style scoped>
+/* La alerta de días va antes que «en ruta»: es lo que nadie está mirando. */
+.estancadas { margin-top: 1.6rem; }
+
+/* ------------------------------------------------------ en ruta ------- */
+.enruta {
+    margin-top: 1.4rem;
+    border: 1px solid var(--linea);
+    border-left: 3px solid var(--acento);
+    border-radius: var(--r-md);
+    background: var(--superficie);
+    padding: 1rem 1.1rem 1.2rem;
+}
+
 /* ------------------------------------------- soportes sin acuse ------- */
 .soportes {
     margin-top: 1.4rem;
@@ -590,6 +834,7 @@ function formatoHolgura(min) {
 }
 
 .soportes-cab { margin-bottom: .8rem; }
+.soportes-cab--con-accion { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .soportes-tit { font-size: 1rem; font-weight: 700; margin: 0; letter-spacing: -.01em; }
 .soportes-sub { margin: .25rem 0 0; font-size: .82rem; color: var(--ink-3); line-height: 1.5; max-width: 72ch; }
 
@@ -701,6 +946,26 @@ function formatoHolgura(min) {
     border-radius: var(--r-md);
     padding: 1rem;
     box-shadow: var(--sombra);
+}
+
+.pastilla--alto { background: #f3e4ff; color: #5b2a86; font-weight: 700; }
+
+.modal-fondo {
+    position: fixed; inset: 0; z-index: 80;
+    background: rgb(0 0 0 / .45);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 4vh 1rem;
+    overflow-y: auto;
+}
+
+/* Ancho generoso: aquí se compara la cadena de trayectos con los candidatos y
+   sus puntajes, y estrecharlo obligaría a desplazarse dentro del diálogo —que
+   es justo lo que esto vino a evitar—. */
+.panel--modal {
+    width: 100%;
+    max-width: 920px;
+    max-height: 92vh;
+    overflow-y: auto;
 }
 
 .panel-cab { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .8rem; }

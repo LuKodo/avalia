@@ -41,7 +41,7 @@ class NovedadController extends Controller
     {
         $paquetes = Paquete::query()
             ->where('estado', EstadoPaquete::Novedad->value)
-            ->with(['orden.cliente', 'orden.origen', 'orden.destino', 'mensajero.usuario'])
+            ->with(['orden.cliente', 'orden.origen', 'orden.destino', 'orden.destinatario', 'mensajero.usuario'])
             ->get()
             ->map(function (Paquete $p) {
                 $novedad = Novedad::where('paquete_id', $p->id)
@@ -54,7 +54,7 @@ class NovedadController extends Controller
                     'guia'       => $p->orden->numero_guia,
                     'cliente'    => $p->orden->cliente->razon_social,
                     'origen'     => $p->orden->origen?->nombre,
-                    'destino'    => $p->orden->destino?->nombre,
+                    'destino'    => $p->orden->nombreDestino(),
                     'mensajero'  => $p->mensajero?->nombre(),
                     'tipo'       => $novedad?->tipo->etiqueta(),
                     'severidad'  => $novedad?->severidad,

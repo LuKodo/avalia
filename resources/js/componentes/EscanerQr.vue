@@ -18,6 +18,27 @@ import { onBeforeUnmount, ref } from 'vue'
  */
 const emit = defineEmits(['leido', 'error'])
 
+const props = defineProps({
+    /**
+     * Escaneo continuo: la camara no se cierra tras cada lectura.
+     *
+     * Es el modo de la recogida rapida. Cerrar y reabrir la camara entre bolsa
+     * y bolsa cuesta casi un segundo cada vez y obliga a un toque de pantalla
+     * con las manos ocupadas; con cincuenta bolsas eso es la diferencia entre
+     * una herramienta y un estorbo.
+     */
+    continuo: { type: Boolean, default: false },
+
+    /**
+     * Milisegundos que se ignora un codigo ya leido.
+     *
+     * La camara ve el mismo QR treinta veces por segundo mientras apunta a la
+     * misma bolsa. Sin esta ventana, una bolsa se registraria decenas de veces
+     * y el mensajero tendria que depurar la lista a mano.
+     */
+    reposoMs: { type: Number, default: 2500 },
+})
+
 const video = ref(null)
 const lienzo = ref(null)
 
@@ -25,6 +46,9 @@ const estado = ref('inactivo')   // inactivo | abriendo | leyendo | imposible
 const motivo = ref(null)
 
 let flujo = null
+
+/** Codigo leido → instante de la ultima emision, para el reposo del modo continuo. */
+const vistos = new Map()
 let detector = null
 let animacion = null
 
@@ -114,10 +138,22 @@ async function leer() {
             : await conJsQr()
 
         if (texto) {
-            emit('leido', normalizar(texto))
-            cerrar()
+            const codigo = normalizar(texto)
 
-            return
+            if (!props.continuo) {
+                emit('leido', codigo)
+                cerrar()
+
+                return
+            }
+
+            // Modo continuo: se emite una vez por codigo y se sigue leyendo.
+            const ahora = Date.now()
+
+            if ((ahora - (vistos.get(codigo) ?? 0)) > props.reposoMs) {
+                vistos.set(codigo, ahora)
+                emit('leido', codigo)
+            }
         }
     } catch {
         // Un cuadro ilegible no es un fallo: se intenta con el siguiente.
@@ -168,6 +204,7 @@ function cerrar() {
 
     if (video.value) video.value.srcObject = null
     estado.value = 'inactivo'
+    vistos.clear()
 }
 
 onBeforeUnmount(cerrar)

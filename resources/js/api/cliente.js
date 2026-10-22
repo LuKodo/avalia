@@ -16,8 +16,9 @@ import { conBase } from '../base'
 const BASE = conBase('/api/v1')
 
 export class ErrorApi extends Error {
-    constructor(mensaje, { estado = 0, cuerpo = null, esDeRed = false } = {}) {
+    constructor(mensaje, { estado = 0, cuerpo = null, esDeRed = false, ruta = null } = {}) {
         super(mensaje)
+        this.ruta = ruta
         this.name = 'ErrorApi'
         this.estado = estado
         this.cuerpo = cuerpo
@@ -70,6 +71,26 @@ async function peticion(ruta, { metodo = 'GET', cuerpo = null, formulario = null
     }
 
     if (!respuesta.ok) {
+        /*
+         * Un 500 en produccion llega como «Server Error» y nada mas: Laravel
+         * no manda la traza cuando APP_DEBUG esta en false, y hace bien. Pero
+         * ese texto en pantalla no le dice nada a quien lo ve ni a quien tiene
+         * que arreglarlo, y la primera pregunta que hay que hacerle a quien
+         * reporta el fallo es siempre la misma: a que hora fue y que ruta era.
+         *
+         * Asi que se reemplaza por algo que si se puede usar: que fallo del
+         * lado del servidor, a que hora, y donde mirar.
+         */
+        if (respuesta.status >= 500) {
+            const hora = new Date().toLocaleTimeString('es-CO', { hour12: false })
+
+            throw new ErrorApi(
+                `El servidor no pudo responder (${respuesta.status}) a las ${hora}. `
+                + `El detalle quedo en el registro del servidor; indique esta hora y «${ruta}» al area de TIC.`,
+                { estado: respuesta.status, cuerpo: datos, ruta }
+            )
+        }
+
         throw new ErrorApi(
             datos?.mensaje ?? datos?.message ?? `Error ${respuesta.status}`,
             { estado: respuesta.status, cuerpo: datos }
@@ -77,6 +98,30 @@ async function peticion(ruta, { metodo = 'GET', cuerpo = null, formulario = null
     }
 
     return datos
+}
+
+/**
+ * Cadena de consulta que sabe de listas.
+ *
+ * `URLSearchParams` convierte un arreglo en «1,2,3», y eso le llega al servidor
+ * como una sola cadena. Los filtros de los informes son multiples por
+ * naturaleza —comparar tres clientes a la vez es el caso de uso, no la
+ * excepcion—, asi que cada elemento va como `clave[]`.
+ */
+function parametros(filtros) {
+    const q = new URLSearchParams()
+
+    for (const [clave, valor] of Object.entries(filtros)) {
+        if (valor === null || valor === undefined || valor === '') continue
+
+        if (Array.isArray(valor)) {
+            valor.forEach((v) => q.append(`${clave}[]`, v))
+        } else {
+            q.append(clave, valor)
+        }
+    }
+
+    return q.toString()
 }
 
 export const api = {
@@ -162,6 +207,12 @@ export const api = {
     catalogoRadicar: () => peticion('/ordenes/catalogo'),
     crearOrden: (datos) => peticion('/ordenes', { metodo: 'POST', cuerpo: datos }),
 
+    /** Cancela una guía radicada por error. No borra: deja constancia. */
+    cancelarOrden: (guia, motivo) =>
+        peticion(`/ordenes/${encodeURIComponent(guia)}/cancelar`, {
+            metodo: 'POST', cuerpo: { motivo },
+        }),
+
     // Enlace firmado y temporal para la guía imprimible. Ver imprimirGuia()
     // en Radicar.vue: la pestaña de impresión no lleva el token de sesión.
     enlaceImpresion: (guia) => peticion(`/ordenes/${encodeURIComponent(guia)}/enlace-impresion`),
@@ -187,6 +238,19 @@ export const api = {
         peticion('/admin/parametros', { metodo: 'PUT', cuerpo: { parametros } }),
     adminAuditoria: (filtros = {}) => peticion(`/admin/auditoria?${new URLSearchParams(filtros)}`),
     adminVerificarCadena: () => peticion('/admin/auditoria/verificar', { metodo: 'POST' }),
+    /*
+     * Informes. Los filtros van por separado porque la pantalla los necesita
+     * para pintar los selectores antes de tener un rango que consultar.
+     */
+    adminInformes: (filtros = {}) => peticion(`/admin/informes?${parametros(filtros)}`),
+    adminInformeFiltros: () => peticion('/admin/informes/filtros'),
+
+    /** Reabre una entrega cerrada por error. No borra la evidencia anterior. */
+    reabrirEntrega: (paqueteId, motivo) =>
+        peticion(`/despacho/paquetes/${paqueteId}/reabrir-entrega`, {
+            metodo: 'POST', cuerpo: { motivo },
+        }),
+
     adminFlota: () => peticion('/admin/flota'),
     adminClientes: () => peticion('/admin/clientes'),
 
@@ -197,6 +261,16 @@ export const api = {
     actualizarCliente: (id, d) => peticion(`/admin/clientes/${id}`, { metodo: 'PUT', cuerpo: d }),
     guardarIntegracion: (id, d) => peticion(`/admin/clientes/${id}/integracion`, { metodo: 'PUT', cuerpo: d }),
 
+    resumenCampo: () => peticion('/campo/resumen'),
+    /** Entrada y salida de jornada: de aquí sale la «hora de entrada». */
+    marcarJornada: (accion) => peticion('/campo/jornada', { metodo: 'POST', cuerpo: { accion } }),
+
+    abrirPausa: (d) => peticion('/campo/pausas', { metodo: 'POST', cuerpo: d }),
+    cerrarPausa: (d) => peticion('/campo/pausas/cerrar', { metodo: 'POST', cuerpo: d ?? {} }),
+    enCurso: () => peticion('/despacho/en-curso'),
+
+    /** Lo que lleva días parado, y en manos de quién. */
+    custodiaProlongada: (dias = 3) => peticion(`/despacho/custodia-prolongada?dias=${dias}`),
     soportesPendientes: () => peticion('/despacho/soportes-pendientes'),
     reenviarSoporte: (id) => peticion(`/despacho/evidencias/${id}/reenviar`, { metodo: 'POST' }),
     alternarCliente: (id) => peticion(`/admin/clientes/${id}/alternar`, { metodo: 'POST' }),

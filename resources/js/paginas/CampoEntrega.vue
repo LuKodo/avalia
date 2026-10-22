@@ -92,6 +92,13 @@ const form = ref({
     consentimiento: false,
 })
 
+/*
+ * Lo que se propuso, para poder decirlo en pantalla. Sin esta marca, un nombre
+ * que aparece solo en un campo obligatorio se lee como un dato ya verificado,
+ * y nadie lo corrige.
+ */
+const receptorPropuesto = ref(null)
+
 const posicion = ref(null)
 
 /** Evidencias capturadas en esta sesión, antes de encolarse. */
@@ -162,6 +169,21 @@ async function resolverTarea() {
             // Sin red no es un error que mostrar como falla: es el modo de
             // operación previsto. El estado vacío de abajo lo explica.
         }
+    }
+
+    /*
+     * Se propone quien se espera que reciba, para no teclearlo de pie en la
+     * calle. El campo queda editable y sin bloquear: quien firma es quien esta
+     * ahi, no quien figura en la ficha del cliente.
+     *
+     * Solo se rellena si esta vacio, para no pisar lo que el mensajero ya
+     * escribio si vuelve a esta pantalla.
+     */
+    const previsto = tarea.value?.receptor_previsto?.nombre
+
+    if (previsto && form.value.receptor_nombre.trim() === '') {
+        form.value.receptor_nombre = previsto
+        receptorPropuesto.value = previsto
     }
 
     cargandoTarea.value = false
@@ -312,6 +334,116 @@ function siguiente() {
     confirmar()
 }
 
+/* =============================== novedades ============================= */
+
+/**
+ * «Fui y no pude», registrado de verdad.
+ *
+ * El botón existía y no hacía nada: volvía a la lista y tiraba lo capturado.
+ * El endpoint llevaba meses esperando a que alguien lo llamara. El mensajero
+ * pedía la novedad, la pantalla se reiniciaba, y la visita fallida —que es un
+ * hecho tan real como una entrega— no quedaba en ninguna parte.
+ *
+ * Se abre SOBRE el paso en curso, sin descartar nada: si ya había foto, se
+ * aprovecha como evidencia de la novedad en vez de pedir otra.
+ */
+const novedad = ref(null)
+
+/** Si esta pantalla se cerró por una novedad y no por una entrega. */
+const cerradoConNovedad = ref(false)
+const catalogoNovedades = ref([])
+const guardandoNovedad = ref(false)
+
+async function abrirNovedad() {
+    novedad.value = { tipo: '', descripcion: '' }
+    aviso.value = null
+
+    if (catalogoNovedades.value.length) return
+
+    try {
+        const c = await api.catalogos()
+        catalogoNovedades.value = c.novedades ?? []
+    } catch {
+        /*
+         * Sin catálogo no se bloquea: se cae a la lista mínima que cubre el
+         * 90 % de los casos en la calle. Una novedad que no se puede reportar
+         * por falta de señal es una visita perdida sin registro.
+         */
+        catalogoNovedades.value = [
+            { valor: 'receptor_ausente', etiqueta: 'Receptor ausente' },
+            { valor: 'direccion_errada', etiqueta: 'Dirección errada' },
+            { valor: 'rechazo_receptor', etiqueta: 'Rechazo del receptor' },
+            { valor: 'sede_cerrada', etiqueta: 'Sede cerrada' },
+            { valor: 'otro', etiqueta: 'Otro' },
+        ]
+    }
+}
+
+/** Las que el servidor exige acompañar de foto. */
+const EXIGEN_FOTO = ['ruptura_cadena_frio', 'empaque_danado', 'accidente_vehiculo', 'sede_cerrada']
+
+const novedadExigeFoto = computed(
+    () => EXIGEN_FOTO.includes(novedad.value?.tipo))
+
+const fotoDisponible = computed(
+    () => evidencias.value.foto_receptor ?? evidencias.value.foto_indicador ?? null)
+
+async function registrarNovedad() {
+    const n = novedad.value
+
+    if (!n?.tipo) {
+        aviso.value = 'Elija el motivo de la novedad.'
+
+        return
+    }
+
+    if (novedadExigeFoto.value && !fotoDisponible.value) {
+        aviso.value = 'Esta novedad exige una foto. Tómela antes de registrarla.'
+
+        return
+    }
+
+    guardandoNovedad.value = true
+
+    try {
+        /*
+         * Si hay foto capturada, se encola como evidencia de la novedad. No se
+         * tira: alguien se tomó la molestia de hacerla y es justo la prueba de
+         * lo que no se pudo entregar.
+         */
+        let evidenciaId = null
+
+        if (fotoDisponible.value) {
+            evidenciaId = await encolarEvidencia(
+                props.paqueteId, 'foto_empaque',
+                fotoDisponible.value.blob, fotoDisponible.value.capturada_en
+            )
+        }
+
+        await encolar('novedad', props.paqueteId, {
+            evento_id: uuid7(),
+            tipo: n.tipo,
+            descripcion: n.descripcion.trim() || null,
+            ocurrido_en: new Date().toISOString(),
+            evidencia_id: evidenciaId,
+            ...posicion.value,
+        })
+
+        await avanzarTareaLocal(props.paqueteId, 'novedad')
+        await refrescarContador()
+
+        sincronizar()
+
+        novedad.value = null
+        cerradoConNovedad.value = true
+        listo.value = true
+    } catch (e) {
+        aviso.value = `No se pudo registrar la novedad: ${e.message}`
+    } finally {
+        guardandoNovedad.value = false
+    }
+}
+
 async function confirmar() {
     if (!esRecoleccion.value && !evidenciaCompleta.value) {
         aviso.value = 'Falta capturar la evidencia. Sin foto y firma no se puede cerrar la entrega.'
@@ -377,13 +509,30 @@ const totalEvidencia = computed(() =>
         <template v-if="listo">
             <div class="exito">
                 <p class="marca" aria-hidden="true">✓</p>
+                <!--
+                    El título dice lo que de verdad pasó.
+                    
+                    Al reutilizar esta pantalla para las novedades, una visita
+                    fallida se confirmaba como «Entrega registrada». Decirle a
+                    alguien que entregó cuando no pudo entregar es peor que no
+                    decirle nada: se va tranquilo de una puerta donde no dejó
+                    nada.
+                -->
                 <h1 class="titulo">
-                    {{ esRecoleccion ? 'Paquete bajo su custodia' : 'Entrega registrada' }}
+                    {{ cerradoConNovedad
+                        ? 'Novedad registrada'
+                        : (esRecoleccion ? 'Paquete bajo su custodia' : 'Entrega registrada') }}
                 </h1>
                 <p class="sub">
-                    Quedó guardado en este teléfono con fecha, hora, ubicación
-                    <template v-if="!esRecoleccion">y {{ Object.values(evidencias).filter(Boolean).length }} evidencia(s)</template>.
-                    Se enviará solo cuando haya señal.
+                    <template v-if="cerradoConNovedad">
+                        El envío queda con novedad y el cliente recibirá el aviso.
+                        Quedó guardado en este teléfono y se enviará solo cuando haya señal.
+                    </template>
+                    <template v-else>
+                        Quedó guardado en este teléfono con fecha, hora, ubicación
+                        <template v-if="!esRecoleccion">y {{ Object.values(evidencias).filter(Boolean).length }} evidencia(s)</template>.
+                        Se enviará solo cuando haya señal.
+                    </template>
                 </p>
                 <button type="button" class="btn btn--pri btn--ancho" @click="router.push('/campo')">
                     Volver a mis tareas
@@ -525,6 +674,18 @@ const totalEvidencia = computed(() =>
                 <label class="etiqueta" for="rn">Nombre de quien recibe</label>
                 <input id="rn" v-model="form.receptor_nombre" class="campo" type="text" autocomplete="off">
 
+                <!--
+                    Se dice que viene propuesto, y de dónde. Un nombre que
+                    aparece solo en un campo obligatorio se lee como verificado,
+                    y entonces nadie lo corrige cuando recibe otra persona.
+                -->
+                <p
+                    v-if="receptorPropuesto && form.receptor_nombre === receptorPropuesto"
+                    class="propuesto"
+                >
+                    Propuesto desde el contacto del destino. Corríjalo si recibe otra persona.
+                </p>
+
                 <label class="etiqueta" for="rd">Documento de identidad</label>
                 <input id="rd" v-model="form.receptor_documento" class="campo campo--num" type="text" inputmode="numeric">
 
@@ -624,10 +785,66 @@ const totalEvidencia = computed(() =>
                     Sin evidencia no se puede cerrar la entrega.
                 </p>
 
-                <button type="button" class="btn btn--novedad btn--ancho" @click="router.push('/campo')">
-                    No se pudo entregar · registrar novedad
-                </button>
             </section>
+
+            <!--
+                Disponible en TODOS los pasos, no solo al final.
+                
+                El mensajero descubre que no hay nadie al llegar, no después de
+                capturar la firma. Tenerlo únicamente en el último paso obligaba
+                a recorrer un formulario entero para poder decir que no se pudo
+                —o a no decirlo—.
+            -->
+            <button
+                v-if="!esRecoleccion && !listo"
+                type="button" class="btn btn--novedad btn--ancho btn--novedad-suelto"
+                @click="abrirNovedad"
+            >No se pudo entregar · registrar novedad</button>
+
+            <!-- ================================================== novedad -->
+            <!--
+                Va SOBRE el paso en curso y no lo descarta.
+                
+                Antes este botón volvía a la lista y se perdía todo lo capturado,
+                y la visita fallida no quedaba registrada en ninguna parte: para
+                el sistema, el mensajero simplemente no había ido.
+            -->
+            <div v-if="novedad" class="nov-fondo" @click.self="novedad = null">
+                <section class="nov-panel" role="dialog" aria-label="Registrar novedad">
+                    <h2 class="nov-tit">¿Qué ocurrió?</h2>
+                    <p class="nov-sub">{{ tarea?.guia }} · {{ tarea?.sede?.nombre }}</p>
+
+                    <div class="nov-motivos">
+                        <button
+                            v-for="n in catalogoNovedades" :key="n.valor"
+                            type="button" class="nov-motivo"
+                            :class="{ elegido: novedad.tipo === n.valor }"
+                            @click="novedad.tipo = n.valor"
+                        >{{ n.etiqueta }}</button>
+                    </div>
+
+                    <textarea
+                        v-model="novedad.descripcion" class="campo campo--area" rows="3"
+                        placeholder="Qué pasó, con sus palabras"
+                    ></textarea>
+
+                    <p v-if="novedadExigeFoto && !fotoDisponible" class="nov-aviso">
+                        Esta novedad exige una foto. Cierre esto, tómela en el paso de evidencia y vuelva.
+                    </p>
+                    <p v-else-if="fotoDisponible" class="nov-ok">
+                        ✓ Se adjuntará la foto que ya tomó.
+                    </p>
+
+                    <div class="nov-acciones">
+                        <button type="button" class="btn btn--sec" @click="novedad = null">Cancelar</button>
+                        <button
+                            type="button" class="btn btn--pri"
+                            :disabled="!novedad.tipo || guardandoNovedad"
+                            @click="registrarNovedad"
+                        >{{ guardandoNovedad ? 'Registrando…' : 'Registrar novedad' }}</button>
+                    </div>
+                </section>
+            </div>
 
             <p v-if="posicion" class="gps num">
                 📍 {{ posicion.latitud.toFixed(5) }}, {{ posicion.longitud.toFixed(5) }}
@@ -656,6 +873,53 @@ const totalEvidencia = computed(() =>
 </template>
 
 <style scoped>
+.propuesto {
+    margin: -.4rem 0 .9rem;
+    font-size: .78rem;
+    line-height: 1.45;
+    color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------ novedad -- */
+.nov-fondo {
+    position: fixed; inset: 0; z-index: 70;
+    background: rgb(0 0 0 / .45);
+    display: flex; align-items: flex-end; justify-content: center;
+}
+
+.nov-panel {
+    width: 100%; max-width: 560px;
+    background: var(--superficie); color: var(--ink-1);
+    border-radius: var(--r-md) var(--r-md) 0 0;
+    padding: 1.1rem 1rem 1.4rem;
+    max-height: 88vh; overflow-y: auto;
+}
+
+.nov-tit { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em; }
+.nov-sub { margin: .2rem 0 .9rem; font-size: .82rem; color: var(--ink-3); }
+
+.nov-motivos { display: flex; flex-wrap: wrap; gap: .45rem; margin-bottom: .8rem; }
+
+.nov-motivo {
+    min-height: 44px; padding: 0 .9rem;
+    border: 1px solid var(--linea-fuerte); border-radius: var(--r-sm);
+    background: var(--superficie); color: var(--ink-2);
+    font-family: inherit; font-size: .86rem; cursor: pointer;
+}
+
+.nov-motivo.elegido {
+    border-color: var(--atencion, #d9a300);
+    background: #fff4e0; color: #7a4a00; font-weight: 600;
+}
+
+.campo--area { width: 100%; font-family: inherit; resize: vertical; }
+
+.nov-aviso { margin: .6rem 0 0; font-size: .82rem; color: #7a4a00; }
+.nov-ok { margin: .6rem 0 0; font-size: .82rem; color: var(--bien, #1b7a46); font-weight: 600; }
+
+.nov-acciones { display: flex; gap: .5rem; margin-top: 1rem; }
+.nov-acciones .btn { flex: 1; }
+
 .entrega { max-width: 560px; margin: 0 auto; padding: 1rem .8rem 2.5rem; }
 
 /* ------------------------------------------------------------------ toast */
@@ -790,7 +1054,9 @@ const totalEvidencia = computed(() =>
     height: 170px;
     border: 2px dashed var(--linea-fuerte);
     border-radius: 12px;
-    background: var(--superficie);
+    /* Blanco fijo, no el color del tema: en modo oscuro el trazo quedaba
+       negro sobre fondo negro y la firma no se veía al hacerla. */
+    background: #fff;
     touch-action: none;
 }
 
@@ -850,6 +1116,7 @@ const totalEvidencia = computed(() =>
 .btn--pri:disabled { opacity: .45; }
 .btn--sec { background: var(--superficie); border-color: var(--linea-fuerte); color: var(--ink); }
 .btn--novedad { background: var(--superficie); border-color: var(--atencion); color: var(--atencion); font-size: .88rem; }
+.btn--novedad-suelto { margin-top: 1rem; }
 
 .bloqueo { font-size: .78rem; color: var(--critico); text-align: center; margin: .35rem 0 0; font-weight: 600; }
 

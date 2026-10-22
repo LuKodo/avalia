@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\EstadoPaquete;
+use App\Enums\TipoEmpaque;
 use App\Enums\TipoPaquete;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,7 +20,7 @@ class Paquete extends Model
 
     protected $fillable = [
         'orden_id', 'codigo', 'consecutivo', 'tipo', 'estado', 'descripcion',
-        'lote', 'peso_kg', 'largo_cm', 'ancho_cm', 'alto_cm',
+        'lote', 'empaque', 'alto_costo', 'peso_kg', 'largo_cm', 'ancho_cm', 'alto_cm',
         'temp_min', 'temp_max', 'presupuesto_estabilidad_min', 'mensajero_id',
     ];
 
@@ -28,6 +29,8 @@ class Paquete extends Model
         return [
             'tipo'            => TipoPaquete::class,
             'estado'          => EstadoPaquete::class,
+            'empaque'         => TipoEmpaque::class,
+            'alto_costo'      => 'boolean',
             'peso_kg'         => 'float',
             'temp_min'        => 'float',
             'temp_max'        => 'float',
@@ -37,6 +40,64 @@ class Paquete extends Model
     }
 
     // ---------------------------------------------------------------- relaciones
+
+    /** Las referencias dichas para ESTA caja. */
+    public function referencias(): HasMany
+    {
+        return $this->hasMany(ReferenciaCliente::class);
+    }
+
+    /**
+     * Las referencias que le corresponden a esta caja, de verdad.
+     *
+     * Primero las suyas. Si no tiene ninguna, las del envío entero: una orden
+     * de un solo paquete no necesita repetir el dato, y todo lo radicado antes
+     * de que las referencias pudieran colgar del paquete está en ese caso.
+     *
+     * El respaldo solo aplica cuando la caja no tiene ninguna propia. Si tiene
+     * tres, son esas tres y no se mezclan con las de la orden: lo contrario
+     * mandaría a un cliente soportes de dispensaciones que iban en otra caja.
+     *
+     * @return \Illuminate\Support\Collection<int, ReferenciaCliente>
+     */
+    public function referenciasEfectivas(): \Illuminate\Support\Collection
+    {
+        $propias = $this->relationLoaded('referencias')
+            ? $this->referencias
+            : $this->referencias()->get();
+
+        if ($propias->isNotEmpty()) {
+            return $propias;
+        }
+
+        $orden = $this->relationLoaded('orden') ? $this->orden : $this->orden()->first();
+
+        if (! $orden) {
+            return collect();
+        }
+
+        // Carga explicita sobre la orden, no sobre el paquete: si quien llama ya
+        // trajo la orden pero sin sus referencias, `loadMissing('orden.…')` la
+        // da por resuelta y el acceso siguiente seria una carga perezosa.
+        $orden->loadMissing('referencias');
+
+        return $orden->referencias;
+    }
+
+    /**
+     * El peso que cuenta para la carga del mensajero.
+     *
+     * Un peso desconocido vale cero. No es que pese cero: es que no sabemos
+     * cuánto pesa, y la única alternativa —tratarlo como infinito, o impedir
+     * la asignación— bloquearía el despacho de un envío perfectamente normal
+     * por un dato que casi nunca decide nada. Cuando sí decide —refrigerados
+     * voluminosos, moto contra furgón— el operador lo ve en pantalla y asigna
+     * a mano.
+     */
+    public function pesoParaCapacidad(): float
+    {
+        return (float) ($this->peso_kg ?? 0);
+    }
 
     public function orden(): BelongsTo
     {
@@ -58,9 +119,23 @@ class Paquete extends Model
         return $this->hasMany(Evidencia::class);
     }
 
+    /**
+     * La entrega vigente.
+     *
+     * El filtro no es decorativo: desde que una entrega se puede reabrir sin
+     * borrar la anterior, un paquete puede tener varias filas en `entregas`, y
+     * sin el `where` esta relación devolvería la primera que encuentre la base
+     * —normalmente la equivocada, porque es la más vieja—.
+     */
     public function entrega(): HasOne
     {
-        return $this->hasOne(Entrega::class);
+        return $this->hasOne(Entrega::class)->where('vigente', true);
+    }
+
+    /** Todas, incluida la reemplazada. Para el soporte y la auditoría. */
+    public function entregas(): HasMany
+    {
+        return $this->hasMany(Entrega::class)->orderBy('entregada_en');
     }
 
     public function temperaturas(): HasMany

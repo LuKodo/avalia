@@ -23,16 +23,23 @@ class IntegracionController extends Controller
     /**
      * Soportes de clientes con integración que todavía no tienen acuse.
      *
-     * Se listan solo los que ya se intentaron al menos una vez. Una evidencia
-     * recién capturada que aún está en cola no es un problema, y mezclarla aquí
-     * convertiría esta pantalla en ruido que nadie mira — exactamente el
-     * destino de `failed_jobs`.
+     * Se listan los que ya se intentaron al menos una vez, con o sin acuse. Una
+     * evidencia recién capturada que todavía está en cola no es un problema, y
+     * mezclarla aquí convertiría esta pantalla en ruido que nadie mira —
+     * exactamente el destino de `failed_jobs`.
      */
     public function pendientes(): JsonResponse
     {
         $filas = Evidencia::query()
-            ->whereNull('entregada_al_cliente_en')
-            ->where('intentos_envio', '>', 0)
+            /*
+             * Se listan también los CONFIRMADOS, no solo los que fallaron.
+             *
+             * Un acuse no es una garantía: su API puede responder 201 y el
+             * archivo no aparecer del otro lado. Pasó. Si esta pantalla solo
+             * enseñara los fallos, el único caso que no se puede detectar desde
+             * fuera sería además el único que no se puede reparar desde aquí.
+             */
+            ->where(fn ($q) => $q->whereNotNull('entregada_al_cliente_en')->orWhere('intentos_envio', '>', 0))
             ->whereHas('paquete.orden.cliente', fn ($q) => $q->where('integracion_activa', true))
             ->with('paquete.orden.cliente', 'paquete.orden.referencias')
             ->orderByDesc('updated_at')
@@ -48,6 +55,9 @@ class IntegracionController extends Controller
                 'intentos'     => (int) $e->intentos_envio,
                 'ultimo_error' => $e->ultimo_error_envio,
                 'desde'        => $e->updated_at?->toIso8601String(),
+                'enviada'      => $e->entregada_al_cliente_en !== null,
+                'enviada_en'   => $e->entregada_al_cliente_en?->toIso8601String(),
+                'nombre_externo' => $e->referencia_externa,
             ]);
 
         return response()->json([
@@ -65,11 +75,24 @@ class IntegracionController extends Controller
      */
     public function reenviar(Evidencia $evidencia): JsonResponse
     {
-        abort_if(
-            $evidencia->entregada_al_cliente_en !== null,
-            409,
-            'Ese soporte ya está confirmado en el repositorio del cliente.'
-        );
+        /*
+         * Reenviar uno ya confirmado es legítimo y hay que poder hacerlo.
+         *
+         * El acuse dice que su servidor contestó que sí, no que el archivo esté
+         * donde debe. Cuando el cliente avisa de que nunca lo recibió, la
+         * respuesta no puede ser «pues consta como enviado»: hay que poder
+         * repetirlo. Se borra el acuse primero para que el trabajo no se salte
+         * a sí mismo —comprueba precisamente eso para no duplicar—.
+         *
+         * El archivo sube con el mismo nombre, así que reemplaza al anterior
+         * en el bucket en vez de dejar una copia suelta.
+         */
+        if ($evidencia->entregada_al_cliente_en !== null) {
+            $evidencia->forceFill([
+                'entregada_al_cliente_en' => null,
+                'ultimo_error_envio' => null,
+            ])->save();
+        }
 
         EnviarSoporteACliente::dispatch($evidencia->id);
 

@@ -128,7 +128,9 @@ class AutenticacionController extends Controller
             'etiqueta_referencia' => $usuario->cliente?->etiqueta_referencia,
             'mensajero_id' => $usuario->mensajero?->id,
             'inicio'       => match ($rol) {
-                'mensajero' => '/campo',
+                // Al tablero, no a la lista: responde antes la pregunta con la
+                // que uno abre la aplicación, que es adónde va ahora.
+                'mensajero' => '/jornada',
                 'cliente'   => '/rastreo',
                 default     => '/tablero',
             },

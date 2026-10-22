@@ -1,4 +1,4 @@
-<#
+﻿<#
 =============================================================================
  Arma el .zip de despliegue de Avalia Logistica
 =============================================================================
@@ -61,7 +61,11 @@ New-Item -ItemType Directory -Force -Path $stage | Out-Null
 # --------------------------------------------------------------- que se copia
 $carpetas = @(
     'app', 'bootstrap', 'config', 'database', 'public',
-    'resources', 'routes', 'storage', 'despliegue', 'herramientas'
+    'resources', 'routes', 'storage', 'despliegue', 'herramientas',
+    # La documentacion viaja con el paquete: la guia de actualizacion y el
+    # inventario de peticiones tienen que estar DONDE se hace la actualizacion,
+    # no en un correo de hace dos semanas.
+    'docs'
 )
 
 $sueltos = @(

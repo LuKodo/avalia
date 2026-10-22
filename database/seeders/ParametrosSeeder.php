@@ -33,6 +33,16 @@ class ParametrosSeeder extends Seeder
             ['entrega.radio_validacion_m', '150', 'int',  'Distancia máxima entre la entrega y la sede para considerarla coherente'],
             ['frio.tolerancia_min',       '20',  'int',   'Minutos de excursión térmica tolerados antes de escalar'],
 
+            /*
+             * Recargo por empaque, como fracción de la tarifa base: 0.30 son un
+             * 30 % más. Nacen en cero a propósito —un precio que nadie fijó no
+             * se cobra— y se ajustan en Administración → Parámetros sin tocar
+             * el software, que es donde deben decidirse los precios.
+             */
+            ['tarifa.recargo_empaque.bolsa',   '0',   'float', 'Recargo sobre la tarifa base para envíos en bolsa'],
+            ['tarifa.recargo_empaque.caja',    '0',   'float', 'Recargo sobre la tarifa base para envíos en caja'],
+            ['tarifa.recargo_empaque.panales', '0',   'float', 'Recargo sobre la tarifa base para pañales (ocupan más volumen)'],
+
             ['integracion.max_lote',      '200', 'int',   'Máximo de referencias por consulta en lote'],
             ['integracion.webhook_reintentos', '5', 'int', 'Reintentos de una notificación antes de darla por fallida'],
         ];

@@ -51,7 +51,7 @@ function vacioCliente() {
 function vacioSede() {
     return {
         cliente_id: null, zona_id: null, nombre: '', codigo_centro_costo: '', tipo: '',
-        direccion: '', detalle_acceso: '', ciudad: 'Medellín',
+        direccion: '', detalle_acceso: '', ciudad: 'Medellín', rural: false,
         latitud: '', longitud: '', coordenada_verificada: false,
         contacto_nombre: '', contacto_telefono: '',
     }
@@ -561,6 +561,18 @@ function cambiarVista(k) {
 
                     <Campo etiqueta="Ciudad" obligatorio :error="err('ciudad')" v-slot="{ id }">
                         <input :id="id" v-model="formSede.ciudad" class="control" type="text">
+                    </Campo>
+
+                    <Campo etiqueta="¿Destino rural?" ancho v-slot="{ id }">
+                        <label class="interruptor">
+                            <input :id="id" v-model="formSede.rural" type="checkbox">
+                            <span>
+                                Corregimiento, vereda o finca. Lleva el recargo por desplazamiento
+                                fuera del casco urbano, y al cliente se le avisa al escoger el destino.
+                                El porcentaje se fija en <strong>Parámetros · tarifa.recargo_rural</strong>;
+                                mientras esté en cero no se cobra nada.
+                            </span>
+                        </label>
                     </Campo>
 
                     <Campo etiqueta="Latitud" :error="err('latitud')" ayuda="Ej.: 6.2988" v-slot="{ id }">

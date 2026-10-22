@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\CatalogoController;
 use App\Http\Controllers\Api\ConsultaController;
 use App\Http\Controllers\Api\DespachoController;
 use App\Http\Controllers\Api\NovedadController;
+use App\Http\Controllers\Api\InformeController;
 use App\Http\Controllers\Api\IntegracionController;
 use App\Http\Controllers\Api\MapaController;
 use App\Http\Controllers\Api\PuntoPactadoController;
@@ -88,6 +89,14 @@ Route::prefix('v1')->group(function () {
         Route::get('ordenes', [OrdenController::class, 'index']);
         Route::post('ordenes', [OrdenController::class, 'store']);
 
+        /*
+         * Cancelar una guía radicada por error. Solo mientras ninguna caja
+         * haya salido: a partir de ahí la resuelve operación. No borra nada —
+         * la guía queda marcada como cancelada, con motivo y en la bitácora.
+         */
+        Route::post('ordenes/{guia}/cancelar', [OrdenController::class, 'cancelar'])
+            ->middleware('rol:administrador|operador|cliente');
+
         Route::get('tablero', [TableroController::class, 'resumen']);
 
         // Puntos pactados. El cliente propone los suyos y consulta su estado;
@@ -99,8 +108,24 @@ Route::prefix('v1')->group(function () {
     // -------------------------------------------------------------- operación
     Route::middleware(['auth:sanctum', 'rol:administrador|operador'])->prefix('despacho')->group(function () {
         Route::get('bandeja', [DespachoController::class, 'bandeja']);
+        // Lo que ya va en manos de alguien, para poder reasignarlo. La bandeja
+        // solo enseña lo que está sin asignar, y la calle no respeta el reparto.
+        Route::get('en-curso', [DespachoController::class, 'enCurso']);
+
+        /*
+         * Lo que lleva días parado y en manos de quién. Es la pregunta que
+         * nadie se hace hasta que llama el cliente.
+         */
+        Route::get('custodia-prolongada', [DespachoController::class, 'enCustodiaProlongada']);
+
         Route::get('paquetes/{paquete}/candidatos', [DespachoController::class, 'candidatos']);
         Route::post('paquetes/{paquete}/asignar', [DespachoController::class, 'asignar']);
+
+        /*
+         * Reabrir una entrega cerrada por error. No borra la evidencia
+         * anterior: la marca como reemplazada y deja el motivo en la bitácora.
+         */
+        Route::post('paquetes/{paquete}/reabrir-entrega', [DespachoController::class, 'reabrirEntrega']);
 
         // Posicion de la flota. Fuera del alcance de los clientes: donde esta
         // un mensajero es dato del trabajador, no del envio.
@@ -161,6 +186,15 @@ Route::prefix('v1')->group(function () {
         Route::get('parametros', [AdminController::class, 'parametros']);
         Route::put('parametros', [AdminController::class, 'guardarParametros']);
 
+        /*
+         * Informes. El administrador no despacha: responde por lo que pasó, y
+         * para eso necesita cifras agregadas que ninguna pantalla de operación
+         * da. La exportación a CSV no vive aquí: la pantalla ya tiene los datos
+         * y los escribe en el navegador, como el resto de listados.
+         */
+        Route::get('informes', [InformeController::class, 'index']);
+        Route::get('informes/filtros', [InformeController::class, 'filtros']);
+
         Route::get('auditoria', [AdminController::class, 'auditoria']);
         Route::post('auditoria/verificar', [AdminController::class, 'verificarCadena']);
 
@@ -205,6 +239,18 @@ Route::prefix('v1')->group(function () {
     // Límite de tasa más alto: un mensajero que recupera señal descarga una
     // jornada entera de una vez, y eso no puede confundirse con un abuso.
     Route::middleware(['auth:sanctum', 'rol:mensajero', 'throttle:300,1'])->prefix('campo')->group(function () {
+        Route::get('resumen', [CampoController::class, 'resumen']);
+
+        // Pausas de jornada: almuerzo, lluvia, avería. Es lo que permite medir
+        // la productividad contra el tiempo en que de verdad se podía repartir.
+        /*
+         * Entrada y salida de la jornada. De aqui sale la «hora de entrada»
+         * con la que los informes arman las franjas horarias.
+         */
+        Route::post('jornada', [CampoController::class, 'marcarJornada']);
+
+        Route::post('pausas', [CampoController::class, 'abrirPausa']);
+        Route::post('pausas/cerrar', [CampoController::class, 'cerrarPausa']);
         Route::get('tareas', [CampoController::class, 'tareas']);
         Route::post('posiciones', [CampoController::class, 'posiciones']);
         Route::post('paquetes/{paquete}/evidencias', [CampoController::class, 'evidencia']);

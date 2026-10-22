@@ -100,6 +100,12 @@ const rutas = [
         meta: { titulo: 'Radicar envío', densidad: 'escritorio' },
     },
     {
+        path: '/radicar/lote',
+        name: 'radicar.lote',
+        component: () => import('./paginas/RadicarLote.vue'),
+        meta: { titulo: 'Radicación masiva', densidad: 'escritorio' },
+    },
+    {
         path: '/telemetria',
         name: 'telemetria',
         component: () => import('./paginas/Telemetria.vue'),
@@ -138,16 +144,47 @@ const rutas = [
         meta: { titulo: 'Parámetros', rol: 'administrador', densidad: 'escritorio' },
     },
     {
+        path: '/admin/informes',
+        name: 'admin.informes',
+        component: () => import('./paginas/admin/Informes.vue'),
+        meta: { titulo: 'Informes', rol: 'administrador', densidad: 'escritorio' },
+    },
+    {
         path: '/admin/auditoria',
         name: 'admin.auditoria',
         component: () => import('./paginas/admin/Auditoria.vue'),
         meta: { titulo: 'Auditoría', rol: 'administrador', densidad: 'escritorio' },
     },
     {
+        /*
+         * El tablero del mensajero: lo primero que ve al entrar.
+         *
+         * Va antes que la lista porque responde la pregunta con la que uno abre
+         * la aplicación —¿a dónde voy ahora?— y la lista responde la segunda.
+         */
+        path: '/jornada',
+        name: 'campo.resumen',
+        component: () => import('./paginas/CampoResumen.vue'),
+        meta: { titulo: 'Mi jornada', rol: 'mensajero', densidad: 'campo' },
+    },
+    {
         path: '/campo',
         name: 'campo',
         component: () => import('./paginas/Campo.vue'),
         meta: { titulo: 'Mis tareas', rol: 'mensajero', densidad: 'campo' },
+    },
+    {
+        /*
+         * Cargar el vehiculo escaneando sin parar.
+         *
+         * Va ANTES de `/campo/:paqueteId/entrega` a proposito: con el orden
+         * contrario, «recogida-rapida» entraria como paqueteId y la pantalla
+         * de entrega buscaria una tarea que no existe.
+         */
+        path: '/campo/recogida-rapida',
+        name: 'campo.recogidaRapida',
+        component: () => import('./paginas/CampoRecogidaRapida.vue'),
+        meta: { titulo: 'Recogida rapida', rol: 'mensajero', densidad: 'campo' },
     },
     {
         /*

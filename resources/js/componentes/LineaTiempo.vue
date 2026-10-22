@@ -87,7 +87,18 @@ const hitos = computed(() => {
 })
 
 const pasoActual = computed(() => hitos.value.find((h) => h.fase === 'curso') ?? null)
-const entregado = computed(() => eventoDe.value.entregado != null)
+/*
+ * Entregado de verdad, no «alguna vez entregado».
+ *
+ * El evento de entrega no se borra nunca —ni cuando operación reabre la
+ * entrega para completar un acta que faltó—, así que preguntarle solo a la
+ * bitácora daba un titular en verde sobre un envío que había vuelto a estar en
+ * curso. Manda el estado actual del paquete cuando se conoce; la bitácora
+ * responde cuando no se pasó.
+ */
+const entregado = computed(() => (
+    props.estado ? props.estado === 'entregado' : eventoDe.value.entregado != null
+))
 
 /** Desvíos ocurridos, en orden, para mostrarlos como interrupciones. */
 const desvios = computed(() =>

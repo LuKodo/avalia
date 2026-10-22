@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import SelectorMapa from '../componentes/SelectorMapa.vue'
 import { api } from '../api/cliente'
 import { sesion } from '../sesion'
 import Mapa from '../componentes/Mapa.vue'
@@ -162,7 +163,24 @@ const enMapa = computed(() => puntos.value
                 <label class="ancho"><span>Dirección</span>
                     <input v-model="forma.direccion" class="control" required maxlength="200"></label>
 
-                <label><span>Latitud</span>
+                <!--
+                        Marcar antes que teclear.
+                        
+                        Nadie sabe de memoria que su farmacia está en 10.4052,
+                        −75.4655. Teclearlas llevaba a dejarlas vacías —y una sede
+                        sin coordenada obliga a asignar a mano y no se puede
+                        validar al entregar— o a pegar el centro del encuadre de
+                        un enlace de mapas en vez del lugar, que ya nos pasó.
+                    -->
+                    <div class="campo-mapa">
+                        <SelectorMapa
+                            v-model:latitud="forma.latitud"
+                            v-model:longitud="forma.longitud"
+                            alto="240px"
+                        />
+                    </div>
+
+                    <label><span>Latitud</span>
                     <input v-model="forma.latitud" class="control num" required type="number" step="any"
                            placeholder="6.2705"></label>
                 <label><span>Longitud</span>
@@ -219,7 +237,22 @@ const enMapa = computed(() => puntos.value
                             <span class="p" :class="chip(p.estado)[1]">{{ chip(p.estado)[0] }}</span>
                         </div>
                         <p class="p-dir">{{ p.direccion }}<span v-if="p.ciudad"> · {{ p.ciudad }}</span></p>
-                        <p class="p-coord num">{{ p.latitud?.toFixed(5) }}, {{ p.longitud?.toFixed(5) }}</p>
+                        <p class="p-coord num">
+                            {{ p.latitud?.toFixed(5) }}, {{ p.longitud?.toFixed(5) }}
+                            <!--
+                                Antes de aprobar un punto hay que VERLO.
+                                
+                                Un par de coordenadas no dice si el cliente
+                                marcó la puerta de la farmacia o la manzana de
+                                enfrente, y aprobar a ciegas manda al mensajero
+                                a una dirección que nadie miró.
+                            -->
+                            <a
+                                v-if="p.latitud && p.longitud"
+                                :href="`https://www.google.com/maps/search/?api=1&query=${p.latitud},${p.longitud}`"
+                                class="p-mapa" target="_blank" rel="noopener"
+                            >🗺 Ver en el mapa</a>
+                        </p>
                         <p v-if="p.detalle_acceso" class="p-acceso">{{ p.detalle_acceso }}</p>
                         <p v-if="p.contacto_nombre" class="p-acceso">
                             {{ p.contacto_nombre }}<span v-if="p.contacto_telefono"> · {{ p.contacto_telefono }}</span>
@@ -255,6 +288,11 @@ const enMapa = computed(() => puntos.value
 </template>
 
 <style scoped>
+.campo-mapa { grid-column: 1 / -1; margin-bottom: .6rem; }
+
+.p-mapa { margin-left: .5rem; font-size: .76rem; font-weight: 600; color: var(--acento); text-decoration: none; white-space: nowrap; }
+.p-mapa:hover { text-decoration: underline; }
+
 .pagina { display: flex; flex-direction: column; gap: 1rem; }
 
 .cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
