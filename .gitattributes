@@ -1,0 +1,11 @@
+# Una sola convencion de final de linea en el repositorio: LF.
+# Sin esto, un archivo editado en Windows y otro en Mac aparecen como
+# reescritos por completo en el diff aunque no cambie ni una palabra.
+* text=auto eol=lf
+
+# Los scripts de Windows si necesitan CRLF: cmd.exe falla con etiquetas y
+# `goto` en archivos .bat con LF.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+*.pdf binary

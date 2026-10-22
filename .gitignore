@@ -15,6 +15,7 @@
 !.env.example
 /despliegue/*.log
 .DS_Store
+/.codegraph
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
